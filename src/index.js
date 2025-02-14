@@ -1,4 +1,4 @@
-
+require('dotenv').config(); // Load environment variables from .env file
 const express = require("express");
 const bodyParser = require('body-parser'); // Required if using express < 4.16.0
 
@@ -11,7 +11,9 @@ require("./database/index")
 
 //routes
 const auth = require('./routes/auth')
-// const order = require("./routes/order")
+const consult = require("./routes/consult")
+const admin = require("./routes/admin")
+const clients = require("./routes/client")
 
 
 const app = express();
@@ -34,7 +36,9 @@ app.use(cors({
 
 // Routes
 app.use('/auth', auth);
-// app.use('/order', order);
+app.use('/consult', consult);
+app.use('/admin', admin);
+app.use('/client', clients);
 
 
 

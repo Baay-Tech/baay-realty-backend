@@ -3,29 +3,65 @@ const bcrypt = require('bcrypt');
 
 const ConsultSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
-  referrer: { type: String, required: true },
+  upline: {
+    name: { type: String },
+    phone: { type: String },
+    email: { type: String }
+  },
+  Clientreferrals: [
+    {
+      name: { type: String },
+      phone: { type: String },
+      email: { type: String }
+    }
+  ],
+  Consultreferrals: [
+    {
+      username: { type: String },
+      phone: { type: String },
+      email: { type: String }
+    }
+  ],
+  referrerIdNumber: { type: String },
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
   phone: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   dob: { type: Date, required: true },
   gender: { type: String, required: true },
-  address: { type: String, required: true },
-  country: { type: String, required: true },
-  state: { type: String, required: true },
-  accountName: { type: String, required: true },
-  accountNumber: { type: String, required: true, unique: true },
-  bank: { type: String, required: true },
+  address: { type: String, },
+  country: { type: String, },
+  state: { type: String,  },
+  accountName: { type: String, },
+  accountNumber: { type: String,  },
+  bank: { type: String, },
   password: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
+  profileimage: { type: String },
+  balance: { type: Number, default: 0 }, // Changed to Number for calculations
+  funding: { type: Number, default: 0 }, // Changed to Number for calculations
+  directCommission: [
+    {
+      amount: { type: Number },
+      purchaseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Purchase' },
+      date: { type: Date, default: Date.now }
+    }
+  ],
+  indirectCommission: [
+    {
+      amount: { type: Number },
+      purchaseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Purchase' },
+      date: { type: Date, default: Date.now }
+    }
+  ]
 });
 
-// Hash password before saving user
-ConsultSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+// Middleware to update balance whenever funding, directCommission, or indirectCommission changes
+ConsultSchema.pre('save', function (next) {
+  const totalDirectCommission = this.directCommission.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalIndirectCommission = this.indirectCommission.reduce((acc, curr) => acc + curr.amount, 0);
+  this.balance = this.funding + totalDirectCommission + totalIndirectCommission;
   next();
 });
 
-module.exports = mongoose.model('User', ConsultSchema);
+module.exports = mongoose.model('ConsultUser', ConsultSchema);
