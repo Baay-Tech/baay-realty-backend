@@ -11,6 +11,36 @@ const nodemailer = require('nodemailer');
 
 
 
+const transporter = nodemailer.createTransport({
+  host: "smtp.zoho.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: 'sanieldan@zohomail.com',
+    pass: 'p8CtA0MtwP6E'
+  }
+});
+
+
+  // Function to send an email
+  const sendEmail = async (to, subject, htmlContent) => { // Changed parameter name
+    try {
+      await transporter.sendMail({
+        from: '"Baay Realty" <sanieldan@zohomail.com>',
+        to,
+        subject,
+        html: htmlContent // Changed from 'text' to 'html'
+      });
+      console.log(`Email sent to ${to}`);
+      return true;
+    } catch (error) {
+      console.error("Email sending error:", error);
+      return false;
+    }
+  };
+
+
+
 router.post('/client/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -32,6 +62,108 @@ router.post('/client/login', async (req, res) => {
   } catch (error) {
     console.log('Login error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+
+// In-memory OTP storage (in production, use Redis or database)
+const otpStorage = new Map();
+
+// Generate OTP
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+
+// Check if email or username already exists
+router.post('/consult/check-availability', async (req, res) => {
+  try {
+    const { email, username } = req.body;
+    
+    const existingEmail = await Consult.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({ message: "Email already in use" });
+    }
+    
+    const existingUsername = await Consult.findOne({ username });
+    if (existingUsername) {
+      return res.status(400).json({ message: "Username already taken" });
+    }
+    
+    return res.status(200).json({ message: "Email and username are available" });
+  } catch (error) {
+    console.log("Error checking availability:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Send OTP
+router.post('/consult/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    
+    // Generate a 6-digit OTP
+    const otp = generateOTP();
+    
+    // Store OTP with expiry time (15 minutes)
+    otpStorage.set(email, {
+      otp,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000)
+    });
+    
+    // Send OTP via email
+    const emailSubject = "Baay Realty - Email Verification";
+    const emailText = `Your verification code is: ${otp}\n\nThis code will expire in 15 minutes.`;
+    
+    const emailSent = await sendEmail(email, emailSubject, emailText);
+    
+    if (!emailSent) {
+      return res.status(500).json({ message: "Failed to send verification email" });
+    }
+    
+    return res.status(200).json({ message: "OTP sent successfully" });
+  } catch (error) {
+    console.error("Error sending OTP:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Verify OTP
+router.post('/consult/verify-otp', (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required" });
+    }
+    
+    const storedData = otpStorage.get(email);
+    
+    if (!storedData) {
+      return res.status(400).json({ message: "No OTP found for this email. Please request a new code." });
+    }
+    
+    if (new Date() > storedData.expiresAt) {
+      otpStorage.delete(email);
+      return res.status(400).json({ message: "OTP has expired. Please request a new code." });
+    }
+    
+    if (storedData.otp !== otp) {
+      return res.status(400).json({ message: "Invalid OTP. Please try again." });
+    }
+    
+    // OTP verified successfully, remove it from storage
+    otpStorage.delete(email);
+    
+    return res.status(200).json({ message: "OTP verified successfully" });
+  } catch (error) {
+    console.error("Error verifying OTP:", error);
+    return res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -121,20 +253,6 @@ router.post('/consult/register', async (req, res) => {
     const loginLink = `${process.env.CLIENT_URL}/login`;
     const referralLink = `${process.env.CLIENT_URL}/register/${referrerIdNumber}`;
 
-    // Email Transporter
-    const transporter = nodemailer.createTransport({
-      service: 'smtp.zoho.com',
-      host: "smtp.zoho.com",
-      port: 465,
-      secure: true,
-      logger: true,
-      debug: true,
-      secureConnection: false,
-      auth: {
-        user: 'sanieldan@zohomail.com',
-        pass: 'p8CtA0MtwP6E'
-      }
-    });
 
     const mailOptions = {
       to: newConsultant.email,

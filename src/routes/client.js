@@ -107,6 +107,8 @@ const transporter = nodemailer.createTransport({
 `;
 
 
+
+
 router.post('/signup', async (req, res) => {
     try {
         // Destructure all fields from the request body
