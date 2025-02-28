@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Properties = require("../database/schema/properties")
 const Client = require("../database/schema/client")
-const ConsultUser = require("../database/schema/consult")
+const Realtor = require("../database/schema/realtor")
 const nodemailer = require('nodemailer');
 const Purchase = require("../database/schema/purchase")
 // Get purchase stats
@@ -167,10 +167,10 @@ router.post('/signup', async (req, res) => {
             return res.status(400).json({ message: 'Username already exists' });
         }
 
-        // Check if referral code exists in ConsultSchema
+        // Check if referral code exists in Realtor
         let referrer = null;
         if (referralCode) {
-            referrer = await ConsultUser.findOne({ referrerIdNumber: referralCode });
+            referrer = await Realtor.findOne({ referrerIdNumber: referralCode });
             if (!referrer) {
                 return res.status(400).json({ message: 'Invalid referral code' });
             }
@@ -317,7 +317,7 @@ router.get('/properties', async (req, res) => {
 
 router.get('/validate-referral/:referralId', async (req, res) => {
     try {
-      const referrer = await ConsultUser.findOne({ referrerIdNumber: req.params.referralId });
+      const referrer = await Realtor.findOne({ referrerIdNumber: req.params.referralId });
       if (!referrer) {
         console.log('Referral code not found' )
 

@@ -4,7 +4,7 @@ const CommissionSchema = new mongoose.Schema({
   type: { type: String, enum: ['direct', 'indirect'], required: true },
   amount: { type: Number, required: true },
   purchaseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Purchase', required: true },
-  consultantId: { type: mongoose.Schema.Types.ObjectId, ref: 'ConsultUser', required: true },
+  realtorantId: { type: mongoose.Schema.Types.ObjectId, ref: 'RealtorUser', required: true },
   clientDetails: {
     clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     firstName: { type: String },

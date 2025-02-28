@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const ConsultUser = require('../database/schema/consult'); // Ensure this is correctly pointing to your Mongoose model
+const Realtor = require('../database/schema/realtor'); // Ensure this is correctly pointing to your Mongoose model
 const bcrypt = require("bcrypt");
 const Fund = require("../database/schema/fundupload")
-const ConsultwithdrawalrequestSchema = require("../database/schema/consultwithdrawalrequest")
-const ConsultMessage = require("../database/schema/consultmessage")
+const RealtorwithdrawalrequestSchema = require("../database/schema/realtorwithdrawalrequest")
+const RealtorMessage = require("../database/schema/realtormessage")
 
 const Property = require("../database/schema/properties")
 
@@ -40,7 +40,7 @@ router.get('/dashboard/:username', async (req, res) => {
     const { username } = req.params;
 
     // Find user based on username
-    const user = await ConsultUser.findOne({ username });
+    const user = await Realtor.findOne({ username });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -53,9 +53,9 @@ router.get('/dashboard/:username', async (req, res) => {
     const downlines = user.Clientreferrals || [];
     const downlinesCount = downlines.length;
 
-    // Fetch direct consult referrals count
-    const consultReferrals = user.Consultreferrals || [];
-    const consultReferralsCount = consultReferrals.length;
+    // Fetch direct Realtor referrals count
+    const realtorReferrals = user.Realtorreferrals || [];
+    const realtorReferralsCount = realtorReferrals.length;
 
     // Calculate total direct commissions
     const totalDirectCommissions = user.directCommission.reduce((acc, curr) => acc + curr.amount, 0);
@@ -64,7 +64,7 @@ router.get('/dashboard/:username', async (req, res) => {
     const totalIndirectCommissions = user.indirectCommission.reduce((acc, curr) => acc + curr.amount, 0);
 
     // Fetch total properties sold directly (from Commission schema)
-    const propertiesSold = await Commission.countDocuments({ consultantId: user._id });
+    const propertiesSold = await Commission.countDocuments({ realtorId: user._id });
 
     // Construct response
     const dashboardData = {
@@ -79,7 +79,7 @@ router.get('/dashboard/:username', async (req, res) => {
       earningAmount: user.balance, // Use balance field
       funding: user.funding, // Use funding field
       unitsSold: propertiesSold, // Properties sold directly
-      consultReferralsCount, // Total consult referrals
+      realtorReferralsCount, // Total Realtor referrals
       clientReferralsCount: downlinesCount, // Total client referrals
     };
 
@@ -94,7 +94,7 @@ router.get('/dashboard/:username', async (req, res) => {
 // Get profile data
 router.get("/profile/:username", async (req, res) => {
     try {
-      const user = await ConsultUser.findOne({ username: req.params.username });
+      const user = await Realtor.findOne({ username: req.params.username });
       if (!user) return res.status(404).json({ message: "User not found" });
   
       res.json({
@@ -119,7 +119,7 @@ router.put("/edit-profile", async (req, res) => {
     const { userId, firstName, lastName, phoneNumber, email, accountName, accountNumber, bankName, address, country, state,   } = req.body;
      
     try {
-      const user = await ConsultUser.findById(userId);
+      const user = await Realtor.findById(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -149,7 +149,7 @@ router.put("/update-profile-image", async (req, res) => {
   const { userId, image } = req.body;
 
   try {
-    const user = await ConsultUser.findById(userId);
+    const user = await Realtor.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -174,7 +174,7 @@ router.put("/change-password", async (req, res) => {
     const { userId, newPassword } = req.body;
   
     try {
-      const user = await ConsultUser.findById(userId);
+      const user = await Realtor.findById(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -279,17 +279,17 @@ router.get("/funding-history/:userId", async (req, res) => {
 
 router.get('/team/:userId', async (req, res) => {
 try {
-    const user = await ConsultUser.findById(req.params.userId);
+    const user = await Realtor.findById(req.params.userId);
     if (!user) {
     return res.status(404).json({ message: 'User not found' });
     }
 
     const teamMembers = [];
     
-    // Process Consultreferrals
-    if (user.Consultreferrals?.length > 0) {
-    for (const referral of user.Consultreferrals) {
-        const referredUser = await ConsultUser.findOne({
+    // Process Realtorreferrals
+    if (user.Realtorreferrals?.length > 0) {
+    for (const referral of user.Realtorreferrals) {
+        const referredUser = await Realtor.findOne({
         $or: [
             { username: referral.username },
             { email: referral.email },
@@ -309,7 +309,7 @@ try {
 
     res.json({
     teamMembers: teamMembers.length > 0 ? teamMembers : [{ 
-        message: 'No referral consult found',
+        message: 'No referral Realtor found',
         cid: user.Clientreferrals?.length || 0 
     }]
     });
@@ -327,7 +327,7 @@ router.post('/withdrawal', async (req, res) => {
     console.log(req.body);
 
     // Check user balance
-    const user = await ConsultUser.findById(userId);
+    const user = await Realtor.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -336,7 +336,7 @@ router.post('/withdrawal', async (req, res) => {
     }
 
     // Create withdrawal request
-    const withdrawal = new ConsultwithdrawalrequestSchema({
+    const withdrawal = new RealtorwithdrawalrequestSchema({
       user: userId,
       amount,
       username,
@@ -408,7 +408,7 @@ router.get('/withdrawal-requests', async (req, res) => {
         filter.status = status;
       }
   
-      const requests = await ConsultwithdrawalrequestSchema.find(filter)
+      const requests = await RealtorwithdrawalrequestSchema.find(filter)
         .sort({ timestamp: -1 }) // Sort by newest first
         .lean();
   
@@ -442,7 +442,7 @@ router.get('/withdrawal-requests', async (req, res) => {
 router.post('/support', async (req, res) => {
     try {
         console.log(req.body)
-      const ticket = new ConsultMessage({
+      const ticket = new RealtorMessage({
         user: req.body.user,
         subject: req.body.subject,
         messages: [{
@@ -462,7 +462,7 @@ router.post('/support', async (req, res) => {
   // Get user's tickets
   router.get('/support/my-tickets/:userid', async (req, res) => {
     try {
-      const tickets = await ConsultMessage.find({ user: req.params.userid })
+      const tickets = await RealtorMessage.find({ user: req.params.userid })
         .sort('-updatedAt');
       res.json(tickets);
     } catch (error) {
@@ -475,7 +475,7 @@ router.post('/support', async (req, res) => {
   router.get('/support', async (req, res) => {
     try {
       if (!req.user.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
-      const tickets = await ConsultMessage.find().populate('user', 'name email');
+      const tickets = await RealtorMessage.find().populate('user', 'name email');
       res.json(tickets);
     } catch (error) {
       console.log('Error fetching withdrawal requests:', error);
@@ -486,7 +486,7 @@ router.post('/support', async (req, res) => {
   // Add message to ticket
   router.post('/support/:ticketId/messages', async (req, res) => {
     try {
-      const ticket = await ConsultMessage.findById(req.params.ticketId);
+      const ticket = await RealtorMessage.findById(req.params.ticketId);
       if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
   
       const sender = 'user'
@@ -507,7 +507,7 @@ router.post('/support', async (req, res) => {
   router.patch('/support/:id/status', async (req, res) => {
     try {
       if (!req.user.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
-      const ticket = await ConsultMessage.findByIdAndUpdate(
+      const ticket = await RealtorMessage.findByIdAndUpdate(
         req.params.id,
         { status: req.body.status },
         { new: true }
@@ -558,7 +558,7 @@ router.get("/properties/:id", async (req, res) => {
 router.get("/birthday-message", async (req, res) => {
   try {
     const userId = req.query.userId; // Pass the user ID as a query parameter
-    const user = await ConsultUser.findById(userId);
+    const user = await Realtor.findById(userId);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -636,13 +636,13 @@ router.get('/clients/purchases', async (req, res) => {
 
 router.get('/view-commission', async (req, res) => {
   try {
-    const { consultantId } = req.query;
+    const { realtorId } = req.query;
     
-    if (!consultantId) {
-      return res.status(400).json({ message: 'Consultant ID is required' });
+    if (!realtorId) {
+      return res.status(400).json({ message: 'Realtor ID is required' });
     }
 
-    const commissions = await Commission.find({ consultantId })
+    const commissions = await Commission.find({ realtorantId })
 
     res.json(commissions);
   } catch (error) {

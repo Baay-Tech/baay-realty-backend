@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
-const ConsultwithdrawalrequestSchema = new mongoose.Schema({
+const RealtorwithdrawalrequestSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'ConsultUser',
+    ref: 'RealtorUser',
     required: true
   },
   username: {
@@ -42,4 +42,4 @@ const ConsultwithdrawalrequestSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model('ConsultwithdrawalrequestSchema', ConsultwithdrawalrequestSchema);
+module.exports = mongoose.model('Realtorwithdrawalrequest', RealtorwithdrawalrequestSchema);

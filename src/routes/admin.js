@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const ConsultUser = require('../database/schema/consult');
-const Consultwithdrawalrequest = require("../database/schema/consultwithdrawalrequest"); // Renamed for clarity
+const RealtorUser = require('../database/schema/realtor');
+const Realtorwithdrawalrequest = require("../database/schema/realtorwithdrawalrequest"); // Renamed for clarity
 const commissionactivation = require("../database/schema/commissionactivation")
 const Funduploads = require("../database/schema/fundupload")
 
 const BirthdayMessage = require("../database/schema/birthdaymessage")
 const Property = require("../database/schema/properties")
 
-const Messages = require("../database/schema/consultmessage")
+const Messages = require("../database/schema/realtormessage")
 
 const FAQ = require("../database/schema/faq")
 
@@ -57,26 +57,26 @@ const transporter = nodemailer.createTransport({
 
 router.get('/dashboard-stats', async (req, res) => {
   try {
-    const [totalConsultants, totalWithdrawals, pendingWithdrawals] = await Promise.all([
-      // Total Consultants - use imported model directly
-      ConsultUser.countDocuments(),
+    const [totalRealtor, totalWithdrawals, pendingWithdrawals] = await Promise.all([
+      // Total Realtor - use imported model directly
+      RealtorUser.countDocuments(),
       
       // Total Approved Withdrawals - use imported model
-      Consultwithdrawalrequest.aggregate([
+      Realtorwithdrawalrequest.aggregate([
         { $group: { _id: null, total: { $sum: "$amount" } } }
       ]),
       
       // Total Pending Withdrawals - use imported model
-      Consultwithdrawalrequest.aggregate([
+      Realtorwithdrawalrequest.aggregate([
         { $match: { status: 'pending' } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
       ])
     ]);
 
-    console.log(totalConsultants)
+    console.log(totalRealtor)
 
     res.json({
-      totalConsultants,
+      totalRealtor,
       totalWithdrawn: totalWithdrawals[0]?.total || 0,
       pendingWithdrawals: pendingWithdrawals[0]?.total || 0
     });
@@ -126,7 +126,7 @@ router.post("/commissions", async(req, res) => {
 // Get all funds
 router.get('/funds', async (req, res) => {
     try {
-        // Fetch all funds and populate the 'ConsultSchema' field with 'username' and 'fullName' from ConsultUser
+        // Fetch all funds and populate the 'RealtorSchema' field with 'username' and 'fullName' from realtorUser
         const funds = await Funduploads.find()
         res.json(funds);
     } catch (error) {
@@ -192,7 +192,7 @@ router.put('/funds/:id', async (req, res) => {
 
       try {
         // Update the user's funding and balance
-        const userDoc = await ConsultUser.findById(user);
+        const userDoc = await RealtorUser.findById(user);
         if (!userDoc) {
           console.log('User not found');
           return res.status(404).json({ message: 'User not found' });
@@ -333,7 +333,7 @@ router.get('/todays-birthdays', async (req, res) => {
       const month = today.getMonth() + 1; // Months are 0-based in JS
       const day = today.getDate();
   
-      const celebrants = await ConsultUser.find({
+      const celebrants = await RealtorUser.find({
         $expr: {
           $and: [
             { $eq: [{ $month: "$dob" }, month] },
@@ -354,7 +354,7 @@ router.get('/todays-birthdays', async (req, res) => {
 router.get('/withdrawals/:status', async (req, res) => {
     try {
       const { status } = req.params;
-      const requests = await Consultwithdrawalrequest.find({ status })
+      const requests = await Realtorwithdrawalrequest.find({ status })
         .sort({ timestamp: -1 })
         .lean();
       res.json(requests);
@@ -368,7 +368,7 @@ router.get('/withdrawals/:status', async (req, res) => {
 router.put('/withdrawals/:id', async (req, res) => {
     try {
         const { status } = req.body;
-        const withdrawal = await Consultwithdrawalrequest.findById(req.params.id);
+        const withdrawal = await Realtorwithdrawalrequest.findById(req.params.id);
 
         if (!withdrawal) return res.status(404).json({ message: 'Withdrawal request not found' });
 
@@ -443,7 +443,7 @@ router.put('/withdrawals/:id', async (req, res) => {
         if (!emailSent) return res.status(500).json({ message: "Failed to send email" });
 
         // Update the withdrawal status only if the email was sent successfully
-        const updatedRequest = await Consultwithdrawalrequest.findByIdAndUpdate(
+        const updatedRequest = await Realtorwithdrawalrequest.findByIdAndUpdate(
             req.params.id,
             { status },
             { new: true }
@@ -610,7 +610,7 @@ router.get('/view/faq', async (req, res) => {
     }
   });
 
-// Get all support tickets with consult user details
+// Get all support tickets with realtors user details
 router.get("/ticket", async (req, res) => {
     try {
       // First get all tickets
@@ -619,15 +619,15 @@ router.get("/ticket", async (req, res) => {
       // Extract all user IDs from tickets
       const userIds = tickets.map(ticket => ticket.user);
   
-      // Get consult users in one query
-      const consultUsers = await ConsultUser.find(
+      // Get realtors users in one query
+      const RealtorUser = await RealtorUser.find(
         { _id: { $in: userIds } },
         'username firstName lastName phone email'
       );
   
       // Create a map for quick lookup
       const userMap = {};
-      consultUsers.forEach(user => {
+      RealtorUser.forEach(user => {
         userMap[user._id.toString()] = {
           username: user.username,
           name: `${user.firstName} ${user.lastName}`,
@@ -674,8 +674,8 @@ router.get("/ticket", async (req, res) => {
     }
   });
   
-// Get all consults with sorting
-router.get('/viewconsults', async (req, res) => {
+// Get all realtors with sorting
+router.get('/viewrealtors', async (req, res) => {
   try {
     const { search, sortOrder, startDate, endDate } = req.query;
     const filter = {};
@@ -694,29 +694,29 @@ router.get('/viewconsults', async (req, res) => {
       };
     }
 
-    const consults = await ConsultUser.find(filter)
+    const realtor = await RealtorUser.find(filter)
       .sort({ createdAt: sortOrder === 'asc' ? 1 : -1 });
 
-    res.json(consults);
+    res.json(realtor);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-  router.get('/viewconsult/:id', async (req, res) => {
+  router.get('/viewrealtors/:id', async (req, res) => {
     try {
-        const consult = await ConsultUser.findById(req.params.id).select('-password');
-        if (!consult) {
-          return res.status(404).json({ message: 'Consult not found' });
+        const realtor = await RealtorUser.findById(req.params.id).select('-password');
+        if (!realtor) {
+          return res.status(404).json({ message: 'Realtor not found' });
         }
-        res.status(200).json(consult);
+        res.status(200).json(realtor);
       } catch (error) {
-        res.status(500).json({ message: 'Error fetching consult' });
+        res.status(500).json({ message: 'Error fetching realtor' });
       }
   });
 
-  // Update consultant
-  router.put('/editconsults/:id', async (req, res) => {
+  // Update realtors
+  router.put('/editrealtors/:id', async (req, res) => {
     try {
         const allowedUpdates = [
           'firstName', 'lastName', 'phone', 'email', 'address',
@@ -730,32 +730,32 @@ router.get('/viewconsults', async (req, res) => {
             return obj;
           }, {});
     
-        const consult = await ConsultUser.findByIdAndUpdate(
+        const realtor = await RealtorUser.findByIdAndUpdate(
           req.params.id,
           updates,
           { new: true, runValidators: true }
         ).select('-password');
     
-        if (!consult) {
-          return res.status(404).json({ message: 'Consult not found' });
+        if (!realtor) {
+          return res.status(404).json({ message: 'Realtors not found' });
         }
         
-        res.status(200).json(consult);
+        res.status(200).json(realtor);
       } catch (error) {
-        res.status(500).json({ message: 'Error updating consult' });
+        res.status(500).json({ message: 'Error updating realtor' });
       }
 });
   
-  // Delete consult
+  // Delete realtors
   router.delete('/delete/:id', async (req, res) => {
     try {
-        const consult = await ConsultUser.findByIdAndDelete(req.params.id);
-        if (!consult) {
-          return res.status(404).json({ message: 'Consult not found' });
+        const realtor = await RealtorUser.findByIdAndDelete(req.params.id);
+        if (!realtor) {
+          return res.status(404).json({ message: 'realtor not found' });
         }
-        res.status(200).json({ message: 'Consult deleted successfully' });
+        res.status(200).json({ message: 'Realtor deleted successfully' });
       } catch (error) {
-        res.status(500).json({ message: 'Error deleting consult' });
+        res.status(500).json({ message: 'Error deleting realtor' });
       }
   });
 
@@ -1001,12 +1001,12 @@ router.patch('/purchases/:id/status', async (req, res) => {
 
       console.log('Property found:', property);
 
-      const consultant = await ConsultUser.findOne({ email: purchase.referralEmail });
-      if (!consultant) {
-        return res.status(404).json({ message: 'Consultant not found' });
+      const realtor = await RealtorUser.findOne({ email: purchase.referralEmail });
+      if (!realtor) {
+        return res.status(404).json({ message: 'Realtor not found' });
       }
 
-      console.log('Consultant found:', consultant);
+      console.log('Realtor found:', realtor);
 
       // Ensure `amount`, `commission`, and `indirectcommission` are numbers
       const purchaseAmount = Number(purchase.amount);
@@ -1021,19 +1021,19 @@ router.patch('/purchases/:id/status', async (req, res) => {
       const directCommissionAmount = (purchaseAmount * commissionRate) / 100;
       console.log(`Direct commission calculated: ${directCommissionAmount}`);
 
-      // Save direct commission to consultant
-      consultant.directCommission.push({
+      // Save direct commission to Realtor
+      realtor.directCommission.push({
         amount: directCommissionAmount,
         purchaseId: purchase._id
       });
-      await consultant.save();
+      await realtor.save();
 
       // Save direct commission transaction
       const directCommission = new Commission({
         type: 'direct',
         amount: directCommissionAmount,
         purchaseId: purchase._id,
-        consultantId: consultant._id,
+        realtorId: realtor._id,
         clientDetails: {
           clientId: purchase.client,
           firstName: purchase.ClientfirstName,
@@ -1051,11 +1051,11 @@ router.patch('/purchases/:id/status', async (req, res) => {
 
       console.log('Direct commission saved successfully.');
 
-      // Handle indirect commission (if consultant has an upline)
+      // Handle indirect commission (if Realtor has an upline)
       let indirectCommissionAmount = 0;
-      if (consultant.upline && consultant.upline.email) {
-        const uplineConsultant = await ConsultUser.findOne({ email: consultant.upline.email });
-        if (uplineConsultant) {
+      if (realtor.upline && realtor.upline.email) {
+        const uplineRealtor = await RealtorUser.findOne({ email: realtor.upline.email });
+        if (uplineRealtor) {
           if (isNaN(indirectCommissionRate)) {
             return res.status(400).json({ message: 'Invalid indirect commission rate' });
           }
@@ -1063,19 +1063,19 @@ router.patch('/purchases/:id/status', async (req, res) => {
           indirectCommissionAmount = (purchaseAmount * indirectCommissionRate) / 100;
           console.log(`Indirect commission calculated: ${indirectCommissionAmount}`);
 
-          // Save indirect commission to upline consultant
-          uplineConsultant.indirectCommission.push({
+          // Save indirect commission to upline Realtor
+          uplineRealtor.indirectCommission.push({
             amount: indirectCommissionAmount,
             purchaseId: purchase._id
           });
-          await uplineConsultant.save();
+          await uplineRealtor.save();
 
           // Save indirect commission transaction
           const indirectCommission = new Commission({
             type: 'indirect',
             amount: indirectCommissionAmount,
             purchaseId: purchase._id,
-            consultantId: uplineConsultant._id,
+            realtorId: uplineRealtor._id,
             clientDetails: {
               clientId: purchase.client,
               firstName: purchase.ClientfirstName,
@@ -1102,10 +1102,10 @@ router.patch('/purchases/:id/status', async (req, res) => {
       );
 
       const directCommissionEmailSent = await sendEmail(
-        consultant.email,
+        realtor.email,
         "Direct Commission Received - Baay Realty", // Specific subject
         directCommissionEmailTemplate( // Use direct template
-          consultant.firstName,
+          realtor.firstName,
           property.propertyName,
           purchase.amount,
           `${purchase.ClientfirstName} ${purchase.ClientlastName}`,
@@ -1116,12 +1116,12 @@ router.patch('/purchases/:id/status', async (req, res) => {
       );
       
       // For Indirect Commission
-      if (consultant.upline && consultant.upline.email) {
+      if (realtor.upline && realtor.upline.email) {
         indirectCommissionEmailSent = await sendEmail(
-          consultant.upline.email,
+          realtor.upline.email,
           "Indirect Commission Received - Baay Realty", // Specific subject
           indirectCommissionEmailTemplate( // Use indirect template
-            uplineConsultant.firstName,
+            uplineRealtor.firstName,
             property.propertyName,
             purchase.amount,
             `${purchase.ClientfirstName} ${purchase.ClientlastName}`,
@@ -1133,12 +1133,12 @@ router.patch('/purchases/:id/status', async (req, res) => {
       }
 
       let indirectCommissionEmailSent = true;
-      if (consultant.upline && consultant.upline.email) {
+      if (realtor.upline && realtor.upline.email) {
         indirectCommissionEmailSent = await sendEmail(
-          consultant.upline.email,
+          realtor.upline.email,
           "Indirect Commission Received - Baay Realty",
           commissionEmailTemplate(
-            consultant.upline.firstName,
+            realtor.upline.firstName,
             property.propertyName,
             purchase.amount,
             `${purchase.ClientfirstName} ${purchase.ClientlastName}`,
@@ -1180,12 +1180,12 @@ router.delete('/purchases/:id', async (req, res) => {
 
 router.get('/view-commissions', async (req, res) => {
   try {
-    const commissions = await Commission.find().populate("consultantId");
+    const commissions = await Commission.find().populate("realtorId");
 
     const formattedCommissions = commissions.map(commission => ({
       ...commission.toObject(),
-      consultemail: commission.consultantId?.email || "",
-      consultfullname: `${commission.consultantId?.firstName || ""} ${commission.consultantId?.lastName || ""}`
+      realtoremail: commission.realtorId?.email || "",
+      realtorfullname: `${commission.realtorId?.firstName || ""} ${commission.realtorId?.lastName || ""}`
     }));
 
     res.json(formattedCommissions);

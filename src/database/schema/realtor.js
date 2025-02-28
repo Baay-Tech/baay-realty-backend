@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-const ConsultSchema = new mongoose.Schema({
+const RealtorSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   upline: {
     name: { type: String },
@@ -15,7 +15,7 @@ const ConsultSchema = new mongoose.Schema({
       email: { type: String }
     }
   ],
-  Consultreferrals: [
+  Realtorreferrals: [
     {
       username: { type: String },
       phone: { type: String },
@@ -57,11 +57,11 @@ const ConsultSchema = new mongoose.Schema({
 });
 
 // Middleware to update balance whenever funding, directCommission, or indirectCommission changes
-ConsultSchema.pre('save', function (next) {
+RealtorSchema.pre('save', function (next) {
   const totalDirectCommission = this.directCommission.reduce((acc, curr) => acc + curr.amount, 0);
   const totalIndirectCommission = this.indirectCommission.reduce((acc, curr) => acc + curr.amount, 0);
   this.balance = this.funding + totalDirectCommission + totalIndirectCommission;
   next();
 });
 
-module.exports = mongoose.model('ConsultUser', ConsultSchema);
+module.exports = mongoose.model('realtorUser', RealtorSchema);

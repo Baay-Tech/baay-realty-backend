@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const Consult = require('../database/schema/consult');
+const Realtor = require('../database/schema/realtor');
 const router = express.Router();
 const { hashPassword, comparePassword } = require("../helper/bcrypt");
 const mongoose = require('mongoose');
@@ -77,16 +77,16 @@ const generateOTP = () => {
 
 
 // Check if email or username already exists
-router.post('/consult/check-availability', async (req, res) => {
+router.post('/realtor/check-availability', async (req, res) => {
   try {
     const { email, username } = req.body;
     
-    const existingEmail = await Consult.findOne({ email });
+    const existingEmail = await Realtor.findOne({ email });
     if (existingEmail) {
       return res.status(400).json({ message: "Email already in use" });
     }
     
-    const existingUsername = await Consult.findOne({ username });
+    const existingUsername = await Realtor.findOne({ username });
     if (existingUsername) {
       return res.status(400).json({ message: "Username already taken" });
     }
@@ -99,7 +99,7 @@ router.post('/consult/check-availability', async (req, res) => {
 });
 
 // Send OTP
-router.post('/consult/send-otp', async (req, res) => {
+router.post('/realtor/send-otp', async (req, res) => {
   try {
     const { email } = req.body;
     
@@ -134,7 +134,7 @@ router.post('/consult/send-otp', async (req, res) => {
 });
 
 // Verify OTP
-router.post('/consult/verify-otp', (req, res) => {
+router.post('/realtor/verify-otp', (req, res) => {
   try {
     const { email, otp } = req.body;
     
@@ -169,7 +169,7 @@ router.post('/consult/verify-otp', (req, res) => {
 
 
 // Register user
-router.post('/consult/register', async (req, res) => {
+router.post('/realtor/register', async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   
@@ -183,7 +183,7 @@ router.post('/consult/register', async (req, res) => {
     } = req.body;
 
     // Validate existing user
-    const existingUser = await Consult.findOne({
+    const existingUser = await Realtor.findOne({
       $or: [{ email }, { phone }, { username }]
     }).session(session);
 
@@ -197,12 +197,12 @@ router.post('/consult/register', async (req, res) => {
       return res.status(400).json({ success: false, message });
     }
 
-    // Find referring consultant
-    const referringConsultant = await Consult.findOne({ 
+    // Find referring Realtor
+    const referringRealtor = await Realtor.findOne({ 
       referrerId: referrerCode 
     }).session(session);
 
-    if (!referringConsultant) {
+    if (!referringRealtor) {
       await session.abortTransaction();
       return res.status(400).json({ 
         success: false, 
@@ -215,11 +215,11 @@ router.post('/consult/register', async (req, res) => {
       return Math.floor(10000 + Math.random() * 90000).toString(); // Ensures a 5-digit number
     };
 
-    // Create new consultant
+    // Create new Realtor
     const hashedPassword = await hashPassword(password);
     const referrerIdNumber = generateReferralId();
 
-    const newConsultant = new Consult({
+    const newRealtor = new Realtor({
       referrerIdNumber,
       username,
       firstName,
@@ -236,15 +236,15 @@ router.post('/consult/register', async (req, res) => {
       // accountNumber,
       // bank,
       upline: {
-        name: `${referringConsultant.firstName} ${referringConsultant.lastName}`,
-        phone: referringConsultant.phone,
-        email: referringConsultant.email
+        name: `${referringRealtor.firstName} ${referringRealtor.lastName}`,
+        phone: referringRealtor.phone,
+        email: referringRealtor.email
       }
     });
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: newConsultant._id, role: 'consultant' },
+      { userId: newRealtor._id, role: 'realtor' },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -255,28 +255,28 @@ router.post('/consult/register', async (req, res) => {
 
 
     const mailOptions = {
-      to: newConsultant.email,
+      to: newRealtor.email,
       from: '"Baay Realty" <sanieldan@zohomail.com>',
-      subject: `🎉 Welcome to Baay Realty - Your Consultant Portal Access`,
+      subject: `🎉 Welcome to Baay Realty - Your Realtor Portal Access`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
           
           <!-- Header Section -->
           <div style="background-color: #002657; color: white; text-align: center; padding: 20px;">
             <h1 style="margin: 0;">Welcome to Baay Realty</h1>
-            <p style="margin: 5px 0;">Your journey as a consultant starts now! 🚀</p>
+            <p style="margin: 5px 0;">Your journey as a realtor starts now! 🚀</p>
           </div>
     
           <!-- Body Content -->
           <div style="padding: 20px;">
             <p>Dear <strong>${firstName} ${lastName}</strong>,</p>
-            <p>We are thrilled to welcome you as a consultant at Baay Realty. Below are your account details:</p>
+            <p>We are thrilled to welcome you as a realtor at Baay Realty. Below are your account details:</p>
     
-            <!-- Consultant Details -->
+            <!-- Realtor Details -->
             <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-              <h3 style="color: #002657;">🔹 Your Consultant Details</h3>
+              <h3 style="color: #002657;">🔹 Your Realtor Details</h3>
               <ul style="list-style: none; padding: 0;">
-                <li><strong>Consultant ID:</strong> ${referrerIdNumber}</li>
+                <li><strong>Realtor ID:</strong> ${referrerIdNumber}</li>
                 <li><strong>Username:</strong> ${username}</li>
                 <li><strong>Email:</strong> ${email}</li>
                 <li><strong>Phone:</strong> ${phone}</li>
@@ -285,11 +285,11 @@ router.post('/consult/register', async (req, res) => {
     
             <!-- Upline Information -->
             <div style="background: #f9f9f9; padding: 15px; border-radius: 6px;">
-              <h3 style="color: #002657;">📢 Your Upline Consultant</h3>
+              <h3 style="color: #002657;">📢 Your Upline ConsuRealtorltant</h3>
               <ul style="list-style: none; padding: 0;">
-                <li><strong>Name:</strong> ${referringConsultant.firstName} ${referringConsultant.lastName}</li>
-                <li><strong>Phone:</strong> ${referringConsultant.phone}</li>
-                <li><strong>Email:</strong> ${referringConsultant.email}</li>
+                <li><strong>Name:</strong> ${referringRealtor.firstName} ${referringRealtor.lastName}</li>
+                <li><strong>Phone:</strong> ${referringRealtor.phone}</li>
+                <li><strong>Email:</strong> ${referringRealtor.email}</li>
               </ul>
             </div>
     
@@ -298,7 +298,7 @@ router.post('/consult/register', async (req, res) => {
               <a href="${loginLink}" 
                 style="background: #E5B305; color: white; padding: 12px 20px; 
                        text-decoration: none; border-radius: 5px; font-weight: bold;">
-                🎯 Access Your Consultant Portal
+                🎯 Access Your Realtor Portal
               </a>
             </div>
     
@@ -337,24 +337,24 @@ router.post('/consult/register', async (req, res) => {
       });
     });
 
-    // Update referring consultant's referrals
-    referringConsultant.Consultreferrals.push({
-      username: newConsultant.username,
-      phone: newConsultant.phone,
-      email: newConsultant.email
+    // Update referring Realtor's referrals
+    referringRealtor.Realtorreferrals.push({
+      username: newRealtor.username,
+      phone: newRealtor.phone,
+      email: newRealtor.email
     });
 
-    await referringConsultant.save({ session });
+    await referringRealtor.save({ session });
 
-    // Save new consultant
-    await newConsultant.save({ session });
+    // Save new Realtor
+    await newRealtor.save({ session });
     await session.commitTransaction();
 
     res.status(201).json({
       success: true,
       message: 'Registration successful!',
       token,
-      newConsultant
+      newRealtor
     });
 
   } catch (error) {
@@ -370,15 +370,15 @@ router.post('/consult/register', async (req, res) => {
 });
 
 
-// Consultant Login
-router.post('/consult/login', async (req, res) => {
+// Realtor Login
+router.post('/realtor/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
     console.log(req.body)
 
     // Find user
-    const user = await Consult.findOne({ username });
+    const user = await Realtor.findOne({ username });
     if (!user) {
       return res.status(401).json({ message: 'No user with this username exit' });
     }
@@ -455,7 +455,7 @@ router.post('/client/login', async (req, res) => {
 
   try {
     // Find user by username
-    const user = await ConsultUser.findOne({ username });
+    const user = await Realtor.findOne({ username });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

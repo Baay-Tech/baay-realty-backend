@@ -11,7 +11,7 @@ require("./database/index")
 
 //routes
 const auth = require('./routes/auth')
-const consult = require("./routes/consult")
+const realtor = require("./routes/realtor")
 const admin = require("./routes/admin")
 const clients = require("./routes/client")
 
@@ -36,9 +36,9 @@ app.use(cors({
 
 // Routes
 app.use('/auth', auth);
-app.use('/consult', consult);
+app.use('/realtor', realtor);
 app.use('/admin', admin);
-app.use('/client', clients);
+app.use('/realtor', clients);
 
 
 
