@@ -23,6 +23,10 @@ const Purchase = require("../database/schema/purchase")
 const Commission = require("../database/schema/commission")
 const mongoose = require('mongoose');
 const Reminder = require("../database/schema/reminder")
+const Admin = require('../database/schema/admin');
+const bcrypt = require("bcryptjs")
+const PendingTestimonials = require("../database/schema/PendingTestimonialsSchema")
+const Testimonial = require("../database/schema/Testimonial")
 
 
 
@@ -82,7 +86,7 @@ router.get('/dashboard-stats', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
+    console.log('Error fetching dashboard stats:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -458,52 +462,196 @@ router.put('/withdrawals/:id', async (req, res) => {
 
 
 
+const sendPropertyEmail = async (to, property) => {
+  try {
+    // Create HTML content for email with images and property details
+    const htmlContent = `
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #002657; color: #E5B30F; padding: 15px; text-align: center; }
+          .property-details { padding: 20px; }
+          .property-image { width: 100%; max-height: 300px; object-fit: cover; margin-bottom: 20px; }
+          .gallery { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+          .gallery-image { width: 150px; height: 100px; object-fit: cover; }
+          .detail-row { margin-bottom: 10px; }
+          .detail-label { font-weight: bold; }
+          .price { font-size: 24px; font-weight: bold; color: #002657; margin: 10px 0; }
+          .description { margin: 15px 0; line-height: 1.8; }
+          .button { display: inline-block; background-color: #E5B30F; color: #002657; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
+          .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>New Property Listed!</h1>
+          </div>
+          <div class="property-details">
+            <img src="${property.featuredImage}" alt="${property.propertyName}" class="property-image">
+            
+            <h2>${property.propertyName}</h2>
+            <div class="price">₦${property.amount.toLocaleString()}</div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Location:</span> ${property.city}, ${property.state}
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Property Type:</span> ${property.propertyType}
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Status:</span> ${property.propertyStatus}
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Bedrooms:</span> ${property.bedrooms}
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Bathrooms:</span> ${property.bathrooms}
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Land Size:</span> ${property.landSize}
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Commission:</span> ${property.commission}%
+            </div>
+            
+            <div class="description">
+              ${property.description}
+            </div>
+            
+            <h3>Gallery Images</h3>
+            <div class="gallery">
+              ${property.galleryImages.map(img => 
+                `<img src="${img}" alt="Property Image" class="gallery-image">`
+              ).join('')}
+            </div>
+            
+            <a href="https://baayrealty.com/properties/${property._id}" class="button">View Property</a>
+            
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} Baay Realty. All rights reserved.</p>
+              <p>This email was sent to you because you are registered with Baay Realty.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await transporter.sendMail({
+      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      to,
+      subject: `New Property: ${property.propertyName}`,
+      html: htmlContent
+    });
+    console.log(`Property email sent to ${to}`);
+    return true;
+  } catch (error) {
+    console.error("Email sending error:", error);
+    return false;
+  }
+};
+
+// Modified Router for property creation that also sends emails
 router.post('/properties', async (req, res) => {
-try {
+  try {
     const { 
-    propertyName,
-    amount,
-    state,
-    city,
-    propertyType,
-    propertyStatus,
-    bedrooms,
-    bathrooms,
-    landSize,
-    description,
-    featuredImage,
-    galleryImages,
-    subscriptionForm,
-    commission,
-    indirectcommission
+      propertyName,
+      amount,
+      state,
+      city,
+      propertyType,
+      propertyStatus,
+      bedrooms,
+      bathrooms,
+      landSize,
+      description,
+      featuredImage,
+      galleryImages,
+      subscriptionForm,
+      commission,
+      indirectcommission
     } = req.body;
 
-    console.log(req.body)
+    console.log("Creating new property:", req.body);
 
     const newProperty = new Property({
-    propertyName,
-    amount,
-    state,
-    city,
-    propertyType,
-    propertyStatus,
-    bedrooms,
-    bathrooms,
-    landSize,
-    description,
-    featuredImage,
-    galleryImages,
-    subscriptionForm,
-    commission,
-    indirectcommission
+      propertyName,
+      amount,
+      state,
+      city,
+      propertyType,
+      propertyStatus,
+      bedrooms,
+      bathrooms,
+      landSize,
+      description,
+      featuredImage,
+      galleryImages,
+      subscriptionForm,
+      commission,
+      indirectcommission
     });
 
-    await newProperty.save();
-    res.status(201).json(newProperty);
-} catch (error) {
-    console.log(error);
-    res.status(500).json({ message: 'Server error' });
-}
+    // Save the property first
+    const savedProperty = await newProperty.save();
+    
+    // After saving, fetch all realtors and clients to send them emails
+    console.log("Property saved, fetching recipients for email notifications...");
+    
+    // Get all realtors' emails
+    const realtors = await RealtorUser.find().select('email');
+    const realtorEmails = realtors.map(realtor => realtor.email);
+    
+    // Get all clients' emails
+    const clients = await Client.find().select('email');
+    const clientEmails = clients.map(client => client.email);
+    
+    // Combine all recipient emails
+    const allRecipients = [...realtorEmails, ...clientEmails];
+    
+    console.log(`Sending property notification to ${allRecipients.length} recipients...`);
+    
+    // Send emails in batches to avoid overwhelming the mail server
+    const batchSize = 50;
+    for (let i = 0; i < allRecipients.length; i += batchSize) {
+      const batch = allRecipients.slice(i, i + batchSize);
+      
+      // Process each recipient in the batch
+      await Promise.all(batch.map(async (email) => {
+        try {
+          await sendPropertyEmail(email, savedProperty);
+        } catch (emailError) {
+          console.error(`Failed to send email to ${email}:`, emailError);
+          // Continue with other emails even if one fails
+        }
+      }));
+      
+      // Add a small delay between batches to prevent rate limiting
+      if (i + batchSize < allRecipients.length) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    console.log("Property notification emails sent successfully");
+    
+    // Send successful response
+    res.status(201).json({
+      message: 'Property created and notification emails sent successfully',
+      property: savedProperty
+    });
+  } catch (error) {
+    console.error("Error in property creation:", error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 });
 
 // Get all properties
@@ -1293,6 +1441,181 @@ router.get('/reminders/:purchaseId', async (req, res) => {
     res.status(500).json({ message: 'Error fetching reminders', error });
   }
 });
+
+
+// @route   GET /api/admin/get-all-admins
+// @desc    Get all admins by type
+router.get('/get-all-admins', async (req, res) => {
+  try {
+
+    const { type } = req.query;
+    const query = type ? { adminType: type } : {};
+    
+    const admins = await Admin.find(query).select('-password');
+    
+    res.json({ admins });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST /api/admin/create-admin
+// @desc    Create a new admin
+router.post('/create-admin', async (req, res) => {
+
+  try {
+
+    const { firstName, lastName, email, phoneNumber, password, adminType } = req.body;
+
+    // Check if admin already exists
+    let admin = await Admin.findOne({ email });
+    if (admin) {
+      return res.status(400).json({ message: 'Admin already exists with this email' });
+    }
+
+    admin = new Admin({
+      firstName,
+      lastName,
+      email,
+      phoneNumber,
+      password,
+      adminType
+    });
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    admin.password = await bcrypt.hash(password, salt);
+
+    await admin.save();
+
+    res.status(201).json({ message: 'Admin created successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   DELETE /api/admin/delete-admin/:id
+router.delete('/delete-admin/:id', async (req, res) => {
+  try {
+    console.log(req.params.id);
+
+    const admin = await Admin.findById(req.params.id);
+
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+
+    // Remove the admin
+    await admin.deleteOne();
+
+    res.json({ message: 'Admin removed successfully' });
+  } catch (err) {
+    console.log(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
+
+// Get all pending testimonials
+router.get('/testimonial/pending', async (req, res) => {
+  try {
+    const pendingTestimonials = await PendingTestimonials.find().sort({ dateSubmitted: -1 });
+    res.json(pendingTestimonials);
+  } catch (error) {
+    console.error('Error fetching pending testimonials:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get all accepted testimonials
+router.get('/testimonial/accepted', async (req, res) => {
+  try {
+    const testimonials = await Testimonial.find().sort({ dateAccepted: -1 });
+    res.json(testimonials);
+  } catch (error) {
+    console.error('Error fetching accepted testimonials:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Accept a pending testimonial
+router.post('/testimonial/accept', async (req, res) => {
+  try {
+    const { testimonialId } = req.body;
+    
+    // Find the pending testimonial
+    const pendingTestimonial = await PendingTestimonials.findById(testimonialId);
+    
+    if (!pendingTestimonial) {
+      return res.status(404).json({ message: 'Testimonial not found' });
+    }
+    
+    // Create a new accepted testimonial
+    const newTestimonial = new Testimonial({
+      realtorId: pendingTestimonial.realtorId,
+      realtorName: pendingTestimonial.realtorName,
+      realtorEmail: pendingTestimonial.realtorEmail,
+      title: pendingTestimonial.title,
+      content: pendingTestimonial.content,
+      dateSubmitted: pendingTestimonial.dateSubmitted
+    });
+    
+    // Save the new testimonial
+    await newTestimonial.save();
+    
+    // Delete the pending testimonial
+    await PendingTestimonials.findByIdAndDelete(testimonialId);
+    
+    res.json({ message: 'Testimonial accepted successfully' });
+  } catch (error) {
+    console.error('Error accepting testimonial:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Reject a pending testimonial
+router.delete('/testimonial/pending/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await PendingTestimonials.findByIdAndDelete(id);
+    
+    if (!result) {
+      return res.status(404).json({ message: 'Testimonial not found' });
+    }
+    
+    res.json({ message: 'Testimonial rejected successfully' });
+  } catch (error) {
+    console.error('Error rejecting testimonial:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete an accepted testimonial
+router.delete('/testimonial/accepted/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await Testimonial.findByIdAndDelete(id);
+    
+    if (!result) {
+      return res.status(404).json({ message: 'Testimonial not found' });
+    }
+    
+    res.json({ message: 'Testimonial deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting testimonial:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+
 
   
 

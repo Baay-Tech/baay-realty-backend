@@ -20,6 +20,9 @@ const Purchase = require("../database/schema/purchase")
 
 const Commission = require("../database/schema/commission")
 
+const PendingTestimonials = require('../database/schema/PendingTestimonialsSchema');
+
+
 // Email Transporter Configuration
 const transporter = nodemailer.createTransport({
   service: 'smtp.zoho.com',
@@ -650,6 +653,55 @@ router.get('/view-commission', async (req, res) => {
     res.status(500).json({ message: 'Server Error' });
   }
 });
+
+router.get('/referrals/:username', async (req, res) => {
+  const { username } = req.params;
+
+    try {
+        // Find the realtor by username
+        const realtor = await Realtor.findOne({ username });
+
+        if (!realtor) {
+            return res.status(404).json({ message: 'Realtor not found' });
+        }
+
+        // Format referral data for the chart
+        const referralData = realtor.Realtorreferrals.map((referral, index) => ({
+            date: new Date(realtor.createdAt).setDate(realtor.createdAt.getDate() + index), // Simulate dates
+            realtorCount: index + 1, // Simulate realtor referral count
+            clientCount: realtor.Clientreferrals.length, // Use client referral count
+            balance: realtor.balance, // Include balance
+            funding: realtor.funding, // Include funding
+            directCommission: realtor.directCommission.reduce((acc, curr) => acc + curr.amount, 0), // Total direct commission
+            indirectCommission: realtor.indirectCommission.reduce((acc, curr) => acc + curr.amount, 0), // Total indirect commission
+        }));
+
+        res.status(200).json(referralData);
+    } catch (error) {
+        console.error('Error fetching referral data:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+
+
+router.post('/testimonials/submit', async (req, res) => {
+  try {
+    const { realtorId, realtorName, realtorEmail, title, content } = req.body;
+    const newTestimonial = new PendingTestimonials({
+      realtorId,
+      realtorName,
+      realtorEmail,
+      title,
+      content,
+    });
+    await newTestimonial.save();
+    res.status(201).json({ message: 'Testimonial submitted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error submitting testimonial', error });
+  }
+});
+
   
 
 module.exports = router;
