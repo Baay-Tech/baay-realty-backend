@@ -59,37 +59,38 @@ const transporter = nodemailer.createTransport({
   };
   
 
-router.get('/dashboard-stats', async (req, res) => {
-  try {
-    const [totalRealtor, totalWithdrawals, pendingWithdrawals] = await Promise.all([
-      // Total Realtor - use imported model directly
-      RealtorUser.countDocuments(),
-      
-      // Total Approved Withdrawals - use imported model
-      Realtorwithdrawalrequest.aggregate([
-        { $group: { _id: null, total: { $sum: "$amount" } } }
-      ]),
-      
-      // Total Pending Withdrawals - use imported model
-      Realtorwithdrawalrequest.aggregate([
-        { $match: { status: 'pending' } },
-        { $group: { _id: null, total: { $sum: "$amount" } } }
-      ])
-    ]);
+  router.get('/dashboard-stats', async (req, res) => {
+    try {
+      const [totalRealtor, totalWithdrawals, pendingWithdrawals, totalPropertiesBought, totalAmount] = await Promise.all([
+        RealtorUser.countDocuments(),
+        Realtorwithdrawalrequest.aggregate([
+          { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]),
+        Realtorwithdrawalrequest.aggregate([
+          { $match: { status: 'pending' } },
+          { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]),
+        Purchase.countDocuments(),
+        Purchase.aggregate([
+          { $group: { _id: null, total: { $sum: "$amount" } } }
+        ])
+      ]);
 
-    console.log(totalRealtor)
-
-    res.json({
-      totalRealtor,
-      totalWithdrawn: totalWithdrawals[0]?.total || 0,
-      pendingWithdrawals: pendingWithdrawals[0]?.total || 0
-    });
-
-  } catch (error) {
-    console.log('Error fetching dashboard stats:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+      console.log(totalRealtor)
+  
+      res.json({
+        totalRealtor,
+        totalWithdrawn: totalWithdrawals[0]?.total || 0,
+        pendingWithdrawals: pendingWithdrawals[0]?.total || 0,
+        totalPropertiesBought: totalPropertiesBought,
+        totalAmount: totalAmount[0]?.total || 0
+      });
+  
+    } catch (error) {
+      console.log('Error fetching dashboard stats:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
 
 
 router.get("/commissions", async (req, res) => {
@@ -768,14 +769,14 @@ router.get("/ticket", async (req, res) => {
       const userIds = tickets.map(ticket => ticket.user);
   
       // Get realtors users in one query
-      const RealtorUser = await RealtorUser.find(
+      const Realtoruser = await RealtorUser.find(
         { _id: { $in: userIds } },
         'username firstName lastName phone email'
       );
   
       // Create a map for quick lookup
       const userMap = {};
-      RealtorUser.forEach(user => {
+      Realtoruser.forEach(user => {
         userMap[user._id.toString()] = {
           username: user.username,
           name: `${user.firstName} ${user.lastName}`,

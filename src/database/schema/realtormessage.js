@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const messageSchema = new mongoose.Schema({
   sender: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['realtor', 'admin', "client"],
     required: true
   },
   content: {
@@ -21,6 +21,21 @@ const supportTicketSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  firstName: {
+    type: String
+  },
+  lastName: {
+    type: String
+  },
+  username: {
+    type: String
+  },
+  phone: {
+    type: String
+  },
+  email: {
+    type: String
   },
   subject: {
     type: String,

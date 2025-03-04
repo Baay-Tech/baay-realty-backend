@@ -11,6 +11,8 @@ const Purchase = require("../database/schema/purchase")
 const mongoose = require('mongoose');
 
 const Reminder = require("../database/schema/reminder")
+const crypto = require("crypto")
+const MessageSupport = require("../database/schema/realtormessage")
 
 
 const transporter = nodemailer.createTransport({
@@ -105,8 +107,113 @@ const transporter = nodemailer.createTransport({
 </body>
 </html>
 `;
+// Store OTPs temporarily (in production, use Redis or another database)
+const otpStore = {};
 
+// Generate OTP email template
+const otpEmailTemplate = (name, otp) => `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+    .container { max-width: 600px; background: #fff; margin: 20px auto; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+    .header { background: #002657; color: #fff; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; }
+    .content { padding: 20px; line-height: 1.6; }
+    .otp-code { font-size: 32px; font-weight: bold; text-align: center; margin: 20px 0; letter-spacing: 5px; color: #002657; }
+    .expiry { text-align: center; color: #FF0000; margin-bottom: 20px; }
+    .footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">Verification Code</div>
+    <div class="content">
+      <p>Dear <strong>${name}</strong>,</p>
+      <p>Please use the following verification code to complete your registration with Baay Realty:</p>
+      <div class="otp-code">${otp}</div>
+      <p class="expiry">This code will expire in 15 minutes</p>
+      <p>If you did not request this code, please ignore this email.</p>
+      <p>Best regards,</p>
+      <p><strong>Baay Realty Team</strong></p>
+    </div>
+    <div class="footer">Baay Realty &copy; 2024. All Rights Reserved.</div>
+  </div>
+</body>
+</html>
+`;
 
+// Route to generate and send OTP
+router.post('/send-otp', async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    
+    // Generate a 6-digit OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    
+    // Store OTP with expiry time (15 minutes)
+    const expiryTime = new Date();
+    expiryTime.setMinutes(expiryTime.getMinutes() + 15);
+    
+    otpStore[email] = {
+      otp,
+      expiry: expiryTime
+    };
+    
+    // Send OTP email
+    await transporter.sendMail({
+      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      to: email,
+      subject: 'Verification Code for Baay Realty Registration',
+      html: otpEmailTemplate(name, otp)
+    });
+    
+    res.status(200).json({ message: 'Verification code sent to your email' });
+  } catch (error) {
+    console.log('Error sending OTP:', error);
+    res.status(500).json({ message: 'Failed to send verification code' });
+  }
+});
+
+// Route to verify OTP
+router.post('/verify-otp', (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+    
+    const storedOtpData = otpStore[email];
+    
+    if (!storedOtpData) {
+      return res.status(400).json({ message: 'No OTP found for this email' });
+    }
+    
+    const currentTime = new Date();
+    
+    if (currentTime > storedOtpData.expiry) {
+      delete otpStore[email];
+      return res.status(400).json({ message: 'OTP has expired' });
+    }
+    
+    if (storedOtpData.otp !== otp) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+    
+    // OTP is valid, delete it to prevent reuse
+    delete otpStore[email];
+    
+    res.status(200).json({ message: 'OTP verified successfully' });
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    res.status(500).json({ message: 'Failed to verify OTP' });
+  }
+});
 
 
 router.post('/signup', async (req, res) => {
@@ -138,7 +245,7 @@ router.post('/signup', async (req, res) => {
             propertyId,
             paymentMethod,
             amount,
-            proofOfPayment,
+           
             referralCode,
             termsAccepted,
             propertyName,
@@ -147,7 +254,7 @@ router.post('/signup', async (req, res) => {
 
 
         // Validate required fields
-        if (!firstName || !lastName || !username || !email || !phone || !password || !dateOfBirth || !gender || !passportPhoto || !address || !city || !state || !country || !zipCode || !nextOfKinName || !nextOfKinRelationship || !nextOfKinEmail || !nextOfKinPhone || !employerName || !employerAddress || !employerEmail || !employerPhone || !propertyId || !paymentMethod || !amount || !proofOfPayment || !termsAccepted) {
+        if (!firstName || !lastName || !username || !email || !phone || !password || !dateOfBirth || !gender || !passportPhoto || !address || !city || !state || !country || !zipCode || !nextOfKinName || !nextOfKinRelationship || !nextOfKinEmail || !nextOfKinPhone || !employerName || !employerAddress || !employerEmail || !employerPhone || !propertyId || !paymentMethod || !amount || !termsAccepted) {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
@@ -227,7 +334,6 @@ router.post('/signup', async (req, res) => {
             property: propertyId,
             amount,
             paymentMethod,
-            proofOfPayment,
             referralName: `${referrer.firstName} ${referrer.lastName}`,
             referralPhone: referrer.phone,
             referralEmail: referrer.email,
@@ -296,7 +402,7 @@ router.post('/signup', async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.log(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -563,6 +669,32 @@ try {
 } catch (error) {
     res.status(500).json({ message: error.message });
 }
+});
+
+
+router.post('/support', async (req, res) => {
+  try {
+      console.log(req.body)
+    const ticket = new MessageSupport({
+      user: req.body.user,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      username: req.body.username,
+      phone: req.body.phone,
+      email: req.body.email,
+      subject: req.body.subject,
+      messages: [{
+        sender: 'client',
+        content: req.body.message
+      }]
+    });
+
+    await ticket.save();
+    res.status(201).json(ticket);
+  } catch (error) {
+    console.log('Error creating support ticket:', error);
+    res.status(400).json({ error: error.message });
+  }
 });
   
   

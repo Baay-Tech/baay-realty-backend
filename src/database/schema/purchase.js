@@ -33,7 +33,7 @@ const PurchaseSchema = new mongoose.Schema({
   },
   proofOfPayment: {
     type: String, // This can store a URL or file path to the proof of payment document/image
-    required: true,
+    // required: true,
   },
   referralName: {
     type: String, // This can store a URL or file path to the proof of payment document/image

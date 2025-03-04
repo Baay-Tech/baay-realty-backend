@@ -8,6 +8,10 @@ const mongoose = require('mongoose');
 const Client = require("../database/schema/client")
 const nodemailer = require('nodemailer');
 
+const Admin = require('../database/schema/admin');
+
+
+
 
 
 
@@ -420,29 +424,44 @@ router.post('/realtor/login', async (req, res) => {
 
 router.post("/admin/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
-    const staticUser = {
-      username: "admin",
-      password: "password123",
-    };
-
-    // Validation
-    if (!username || !password) {
+    const { username, password, captcha, adminType } = req.body;
+    
+    // Validate required fields
+    if (!username || !password || !captcha) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    if (username !== staticUser.username) {
-      return res.status(401).json({ message: "Invalid username" });
+    // Find the admin by username (email) and adminType
+    const admin = await Admin.findOne({ 
+      email: username,
+      adminType: adminType 
+    });
+
+    if (!admin) {
+      return res.status(401).json({ message: `Invalid ${adminType} credentials` });
     }
 
-    if (password !== staticUser.password) {
+    // Compare password (assuming passwords are hashed with bcrypt)
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) {
       return res.status(401).json({ message: "Invalid password" });
     }
 
-    // Generate JWT
-    const token = jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: "24h" });
+    // Generate JWT with adminType included
+    const token = jwt.sign(
+      { id: admin._id, username: admin.email, adminType: admin.adminType }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: "24h" }
+    );
 
-    res.json({ message: "Login successful", token, username });
+    res.json({ 
+      message: "Login successful", 
+      token, 
+      username: admin.email,
+      adminType: admin.adminType,
+      firstName: admin.firstName,
+      lastName: admin.lastName
+    });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Internal server error" });

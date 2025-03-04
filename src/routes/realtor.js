@@ -4,7 +4,7 @@ const Realtor = require('../database/schema/realtor'); // Ensure this is correct
 const bcrypt = require("bcrypt");
 const Fund = require("../database/schema/fundupload")
 const RealtorwithdrawalrequestSchema = require("../database/schema/realtorwithdrawalrequest")
-const RealtorMessage = require("../database/schema/realtormessage")
+const MessageSupport = require("../database/schema/realtormessage")
 
 const Property = require("../database/schema/properties")
 
@@ -21,6 +21,8 @@ const Purchase = require("../database/schema/purchase")
 const Commission = require("../database/schema/commission")
 
 const PendingTestimonials = require('../database/schema/PendingTestimonialsSchema');
+
+const Testimonial = require("../database/schema/Testimonial")
 
 
 // Email Transporter Configuration
@@ -443,29 +445,34 @@ router.get('/withdrawal-requests', async (req, res) => {
 
 // Create new ticket
 router.post('/support', async (req, res) => {
-    try {
-        console.log(req.body)
-      const ticket = new RealtorMessage({
-        user: req.body.user,
-        subject: req.body.subject,
-        messages: [{
-          sender: 'user',
-          content: req.body.message
-        }]
-      });
-  
-      await ticket.save();
-      res.status(201).json(ticket);
-    } catch (error) {
-      console.log('Error fetching withdrawal requests:', error);
-      res.status(400).json({ error: error.message });
-    }
-  });
+  try {
+      console.log(req.body)
+    const ticket = new MessageSupport({
+      user: req.body.user,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      username: req.body.username,
+      phone: req.body.phone,
+      email: req.body.email,
+      subject: req.body.subject,
+      messages: [{
+        sender: 'realtor',
+        content: req.body.message
+      }]
+    });
+
+    await ticket.save();
+    res.status(201).json(ticket);
+  } catch (error) {
+    console.log('Error creating support ticket:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
   
   // Get user's tickets
   router.get('/support/my-tickets/:userid', async (req, res) => {
     try {
-      const tickets = await RealtorMessage.find({ user: req.params.userid })
+      const tickets = await MessageSupport.find({ user: req.params.userid })
         .sort('-updatedAt');
       res.json(tickets);
     } catch (error) {
@@ -478,7 +485,7 @@ router.post('/support', async (req, res) => {
   router.get('/support', async (req, res) => {
     try {
       if (!req.user.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
-      const tickets = await RealtorMessage.find().populate('user', 'name email');
+      const tickets = await MessageSupport.find().populate('user', 'name email');
       res.json(tickets);
     } catch (error) {
       console.log('Error fetching withdrawal requests:', error);
@@ -489,7 +496,7 @@ router.post('/support', async (req, res) => {
   // Add message to ticket
   router.post('/support/:ticketId/messages', async (req, res) => {
     try {
-      const ticket = await RealtorMessage.findById(req.params.ticketId);
+      const ticket = await MessageSupport.findById(req.params.ticketId);
       if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
   
       const sender = 'user'
@@ -510,7 +517,7 @@ router.post('/support', async (req, res) => {
   router.patch('/support/:id/status', async (req, res) => {
     try {
       if (!req.user.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
-      const ticket = await RealtorMessage.findByIdAndUpdate(
+      const ticket = await MessageSupport.findByIdAndUpdate(
         req.params.id,
         { status: req.body.status },
         { new: true }
@@ -699,6 +706,26 @@ router.post('/testimonials/submit', async (req, res) => {
     res.status(201).json({ message: 'Testimonial submitted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error submitting testimonial', error });
+  }
+});
+
+
+// Example backend route
+router.get('/testimonials', async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 3;
+
+  try {
+    const testimonials = await Testimonial.find()
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const total = await Testimonial.countDocuments();
+    const hasMore = page * limit < total;
+
+    res.status(200).json({ testimonials, hasMore });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching testimonials', error });
   }
 });
 

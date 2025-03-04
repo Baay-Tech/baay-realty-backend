@@ -38,7 +38,7 @@ app.use(cors({
 app.use('/auth', auth);
 app.use('/realtor', realtor);
 app.use('/admin', admin);
-app.use('/realtor', clients);
+app.use('/client', clients);
 
 
 
