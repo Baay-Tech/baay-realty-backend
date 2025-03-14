@@ -238,10 +238,8 @@ router.post('/signup', async (req, res) => {
             nextOfKinRelationship,
             nextOfKinEmail,
             nextOfKinPhone,
-            employerName,
-            employerAddress,
-            employerEmail,
-            employerPhone,
+            occupation,
+            officeAddress,
             propertyId,
             paymentMethod,
             amount,
@@ -254,7 +252,7 @@ router.post('/signup', async (req, res) => {
 
 
         // Validate required fields
-        if (!firstName || !lastName || !username || !email || !phone || !password || !dateOfBirth || !gender || !passportPhoto || !address || !city || !state || !country || !zipCode || !nextOfKinName || !nextOfKinRelationship || !nextOfKinEmail || !nextOfKinPhone || !employerName || !employerAddress || !employerEmail || !employerPhone || !propertyId || !paymentMethod || !amount || !termsAccepted) {
+        if (!firstName || !lastName || !username || !email || !phone || !password || !dateOfBirth || !gender || !passportPhoto || !address || !city || !state || !country || !zipCode || !nextOfKinName || !nextOfKinRelationship || !nextOfKinEmail || !nextOfKinPhone || !occupation || !officeAddress || !propertyId || !paymentMethod || !amount || !termsAccepted) {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
@@ -310,11 +308,9 @@ router.post('/signup', async (req, res) => {
                 email: nextOfKinEmail,
                 phone: nextOfKinPhone,
             },
-            employer: {
-                name: employerName,
-                address: employerAddress,
-                email: employerEmail,
-                phone: employerPhone,
+            work: {
+                name: occupation,
+                address: officeAddress,
             },
             upline: referrer ? {
                 name: `${referrer.firstName} ${referrer.lastName}`,

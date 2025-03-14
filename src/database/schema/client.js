@@ -65,11 +65,9 @@ const ClientSchema = new mongoose.Schema({
     phone: String,
   },
   
-  employer: {
+  work: {
     name: String,
     address: String,
-    email: String,
-    phone: String,
   },
   
   upline: {

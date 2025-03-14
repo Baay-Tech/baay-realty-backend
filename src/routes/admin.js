@@ -93,14 +93,38 @@ const transporter = nodemailer.createTransport({
   });
 
 
+  router.get('/admin-dashboard-stats', async (req, res) => {
+    try {
+      const [totalRealtors, totalWithdrawals, pendingWithdrawals] = await Promise.all([
+        RealtorUser.countDocuments(),
+        Realtorwithdrawalrequest.aggregate([
+          { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]),
+        Realtorwithdrawalrequest.aggregate([
+          { $match: { status: 'pending' } },
+          { $group: { _id: null, total: { $sum: "$amount" } } }
+        ])
+      ]);
+  
+      res.json({
+        totalRealtors, // Ensure this matches the expected key in the frontend
+        totalWithdrawn: totalWithdrawals[0]?.total || 0,
+        pendingWithdrawals: pendingWithdrawals[0]?.total || 0
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
 router.get("/commissions", async (req, res) => {
     try {
-      const commissions = await commissionactivation
-      .find(); // Fetch from DB
+      const commissions = await commissionactivation();
+     
       console.log(commissions);
       res.status(200).json(commissions);
     } catch (error) {
-      console.error("Error fetching commissions:", error);
+      console.log("Error fetching commissions:", error);
       res.status(500).json({ message: "Failed to fetch commissions" });
     }
   });
@@ -852,17 +876,17 @@ router.get('/viewrealtors', async (req, res) => {
   }
 });
 
-  router.get('/viewrealtors/:id', async (req, res) => {
-    try {
-        const realtor = await RealtorUser.findById(req.params.id).select('-password');
-        if (!realtor) {
-          return res.status(404).json({ message: 'Realtor not found' });
-        }
-        res.status(200).json(realtor);
-      } catch (error) {
-        res.status(500).json({ message: 'Error fetching realtor' });
+router.get('/viewrealtors/:id', async (req, res) => {
+  try {
+      const realtor = await RealtorUser.findById(req.params.id).select('-password');
+      if (!realtor) {
+        return res.status(404).json({ message: 'Realtor not found' });
       }
-  });
+      res.status(200).json(realtor);
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching realtor' });
+    }
+});
 
   // Update realtors
   router.put('/editrealtors/:id', async (req, res) => {
@@ -1131,15 +1155,12 @@ router.patch('/purchases/:id/status', async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    console.log(`Updating purchase ${id} with status: ${status}`);
-
     // Find purchase by ID
     const purchase = await Purchase.findById(id);
     if (!purchase) {
       return res.status(404).json({ message: 'Purchase not found' });
     }
 
-    console.log('Purchase found:', purchase);
 
     // Only proceed if status is being updated to 'confirmed'
     if (status === 'confirmed') {
@@ -1148,10 +1169,11 @@ router.patch('/purchases/:id/status', async (req, res) => {
         return res.status(404).json({ message: 'Property not found' });
       }
 
-      console.log('Property found:', property);
-
       const realtor = await RealtorUser.findOne({ email: purchase.referralEmail });
+
+      console.log(realtor)
       if (!realtor) {
+        console.log('Realtor not found')
         return res.status(404).json({ message: 'Realtor not found' });
       }
 
@@ -1163,6 +1185,7 @@ router.patch('/purchases/:id/status', async (req, res) => {
       const indirectCommissionRate = Number(property.indirectcommission);
 
       if (isNaN(purchaseAmount) || isNaN(commissionRate)) {
+        console.log('Invalid purchase amount or commission rate')
         return res.status(400).json({ message: 'Invalid purchase amount or commission rate' });
       }
 
@@ -1182,7 +1205,7 @@ router.patch('/purchases/:id/status', async (req, res) => {
         type: 'direct',
         amount: directCommissionAmount,
         purchaseId: purchase._id,
-        realtorId: realtor._id,
+        realtorantId: realtor._id,
         clientDetails: {
           clientId: purchase.client,
           firstName: purchase.ClientfirstName,
@@ -1310,7 +1333,7 @@ router.patch('/purchases/:id/status', async (req, res) => {
 
     res.json(purchase);
   } catch (error) {
-    console.error("Error updating purchase status:", error);
+    console.log("Error updating purchase status:", error);
     res.status(400).json({ message: error.message, stack: error.stack });
   }
 });
@@ -1329,7 +1352,7 @@ router.delete('/purchases/:id', async (req, res) => {
 
 router.get('/view-commissions', async (req, res) => {
   try {
-    const commissions = await Commission.find().populate("realtorId");
+    const commissions = await Commission.find().populate("realtorantId");
 
     const formattedCommissions = commissions.map(commission => ({
       ...commission.toObject(),
@@ -1408,7 +1431,7 @@ router.get('/purchases/incomplete', async (req, res) => {
 // Add a reminder
 router.post('/reminders', async (req, res) => {
   try {
-    const { purchaseId, propertyName, propertyActualPrice, amountRemaining, nextPaymentDate, Clientemail } = req.body;
+    const { purchaseId, propertyName, propertyActualPrice, amountRemaining, nextPaymentDate, Clientemail, scheduledDate } = req.body;
 
     console.log(req.body)
 
@@ -1420,11 +1443,11 @@ router.post('/reminders', async (req, res) => {
         propertyName,
         propertyActualPrice,
         reminders: [],
-        Clientemail
+        Clientemail,
       });
     }
 
-    reminder.reminders.push({ amountRemaining, nextPaymentDate });
+    reminder.reminders.push({ amountRemaining, nextPaymentDate, scheduledDate });
     await reminder.save();
 
     res.status(201).json(reminder);

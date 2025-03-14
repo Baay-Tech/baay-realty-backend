@@ -28,6 +28,10 @@ const ReminderSchema = new mongoose.Schema({
         type: Date,
         required: true,
       },
+      scheduledDate: {
+        type: Date,
+        required: true,
+      },
     },
   ],
   createdAt: {
