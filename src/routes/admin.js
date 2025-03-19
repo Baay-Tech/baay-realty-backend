@@ -214,7 +214,7 @@ router.put('/funds/:id', async (req, res) => {
             </p>
           </div>
           <div style="background-color: #002657; padding: 10px; text-align: center; color: white;">
-            <p>📞 +234 800 555 REAL (7325) | 📧 support@baayrealty.com</p>
+            <p>📞 +2348071260398 | 📧 clientrelations.baayprojects@gmail.com</p>
           </div>
         </div>
       `;
@@ -267,7 +267,7 @@ router.put('/funds/:id', async (req, res) => {
               We were unable to verify it. Please contact our support team so we can assist you.
             </p>
             <div style="text-align: center; margin: 20px 0;">
-              <a href="mailto:support@baayrealty.com" 
+              <a href="mailto:clientrelations.baayprojects@gmail.com" 
                 style="background-color: #E5B305; color: white; padding: 10px 20px; 
                       text-decoration: none; border-radius: 5px; font-size: 16px;">
                 Contact Support
@@ -278,7 +278,7 @@ router.put('/funds/:id', async (req, res) => {
             </p>
           </div>
           <div style="background-color: #002657; padding: 10px; text-align: center; color: white;">
-            <p>📞 +234 800 555 REAL (7325) | 📧 support@baayrealty.com</p>
+            <p>📞 +2348071260398 | 📧 clientrelations.baayprojects@gmail.com</p>
           </div>
         </div>
       `;
@@ -1487,9 +1487,7 @@ router.get('/get-all-admins', async (req, res) => {
 // @route   POST /api/admin/create-admin
 // @desc    Create a new admin
 router.post('/create-admin', async (req, res) => {
-
   try {
-
     const { firstName, lastName, email, phoneNumber, password, adminType } = req.body;
 
     // Check if admin already exists
@@ -1512,6 +1510,45 @@ router.post('/create-admin', async (req, res) => {
     admin.password = await bcrypt.hash(password, salt);
 
     await admin.save();
+
+    // Determine the login link based on adminType
+    const loginLink = adminType === 'superadmin' 
+      ? 'https://baay-frontemd.onrender.com/superadmin/login' 
+      : 'https://baay-frontemd.onrender.com/admin/login';
+
+    // HTML email template
+    const htmlTemplate = `
+      <div style="font-family: Arial, sans-serif; color: #333;">
+        <h2 style="color: #4CAF50;">Welcome to Baay, ${firstName}!</h2>
+        <p>Your admin account has been successfully created.</p>
+        <p>Here are your login details:</p>
+        <ul>
+          <li><strong>Email:</strong> ${email}</li>
+          <li><strong>Password:</strong> ${password}</li>
+        </ul>
+        <p>Click the link below to log in to your account:</p>
+        <a href="${loginLink}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Login to Baay</a>
+        <p>If you have any questions, feel free to contact us.</p>
+        <p>Best regards,<br/>The Baay Team</p>
+      </div>
+    `;
+
+    // Email options
+    const mailOptions = {
+      from: 'sanieldan@zohomail.com',
+      to: email,
+      subject: 'Your Baay Admin Account Has Been Created',
+      html: htmlTemplate
+    };
+
+    // Send email
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Error sending email:', error);
+      } else {
+        console.log('Email sent:', info.response);
+      }
+    });
 
     res.status(201).json({ message: 'Admin created successfully' });
   } catch (err) {
