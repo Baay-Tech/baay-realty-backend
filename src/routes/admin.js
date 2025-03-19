@@ -1535,7 +1535,7 @@ router.post('/create-admin', async (req, res) => {
 
     // Email options
     const mailOptions = {
-      from: 'sanieldan@zohomail.com',
+      from: '"Baay Realty" <sanieldan@zohomail.com>',
       to: email,
       subject: 'Your Baay Admin Account Has Been Created',
       html: htmlTemplate
