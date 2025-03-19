@@ -315,7 +315,7 @@ router.post('/realtor/register', async (req, res) => {
     
             <p>If you have any questions, feel free to reach out to us:</p>
             <p>📞 <strong>+234 800 555 REAL (7325)</strong></p>
-            <p>📧 <a href="mailto:support@baayrealty.com" style="color: #002657;">support@baayrealty.com</a></p>
+            <p>📧 <a href="clientrelations.baayprojects@gmail.com" style="color: #002657;">clientrelations.baayprojects@gmail.com</a></p>
           </div>
     
           <!-- Footer Section -->

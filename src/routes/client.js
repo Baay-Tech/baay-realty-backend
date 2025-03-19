@@ -68,7 +68,7 @@ const transporter = nodemailer.createTransport({
         <p>Best regards,</p>
         <p><strong>Baay Realty Team</strong></p>
       </div>
-      <div class="footer">Baay Realty &copy; 2024. All Rights Reserved.</div>
+      <div class="footer">Baay Realty &copy; 2025. All Rights Reserved.</div>
     </div>
   </body>
   </html>
@@ -102,7 +102,7 @@ const transporter = nodemailer.createTransport({
       <p>Best regards,</p>
       <p><strong>Baay Realty Team</strong></p>
     </div>
-    <div class="footer">Baay Realty &copy; 2024. All Rights Reserved.</div>
+    <div class="footer">Baay Realty &copy; 2025. All Rights Reserved.</div>
   </div>
 </body>
 </html>
@@ -137,7 +137,7 @@ const otpEmailTemplate = (name, otp) => `
       <p>Best regards,</p>
       <p><strong>Baay Realty Team</strong></p>
     </div>
-    <div class="footer">Baay Realty &copy; 2024. All Rights Reserved.</div>
+    <div class="footer">Baay Realty &copy; 2025. All Rights Reserved.</div>
   </div>
 </body>
 </html>
@@ -549,7 +549,7 @@ try {
             <p>Best regards,</p>
             <p><strong>Baay Realty Team</strong></p>
         </div>
-        <div class="footer">Baay Realty &copy; 2024. All Rights Reserved.</div>
+        <div class="footer">Baay Realty &copy; 2025. All Rights Reserved.</div>
         </div>
     </body>
     </html>
@@ -579,11 +579,10 @@ try {
             <p><strong>Property:</strong> ${propertyName}</p>
             <p><strong>Amount Paid:</strong> ${amount}</p>
             <p>Please review the details in the admin portal:</p>
-            <a href="${portalLink}" class="button">Admin Portal</a>
             <p>Best regards,</p>
             <p><strong>Baay Realty Team</strong></p>
         </div>
-        <div class="footer">Baay Realty &copy; 2024. All Rights Reserved.</div>
+        <div class="footer">Baay Realty &copy; 2025. All Rights Reserved.</div>
         </div>
     </body>
     </html>
@@ -593,7 +592,7 @@ try {
     const userEmailSent = await sendEmail(
     newPurchase.Clientemail,
     "Property Purchase Confirmation - Baay Realty",
-    userEmailTemplate(newPurchase.ClientfirstName, newPurchase.propertyName, "https://your-portal-link.com") // Replace with actual portal link
+    userEmailTemplate(newPurchase.ClientfirstName, newPurchase.propertyName, "https://baay-frontemd.onrender.com/client-dashboard") // Replace with actual portal link
     );
 
     if (!userEmailSent) {
