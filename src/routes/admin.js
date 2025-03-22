@@ -330,30 +330,45 @@ router.put('/funds/:id', async (req, res) => {
     }
   });
   
-  // Create/Update message
-  router.post('/birthday-message', async (req, res) => {
-    try {
-      const { message } = req.body;
-      
-      // Find the most recent message
-      let birthdayMessage = await BirthdayMessage.findOne().sort({ createdAt: -1 });
-  
-      if (birthdayMessage) {
-        // Update existing message
-        birthdayMessage.message = message;
-        birthdayMessage.updatedAt = Date.now();
-      } else {
-        // Create new message
-        birthdayMessage = new BirthdayMessage({ message });
-      }
-  
-      await birthdayMessage.save();
-      res.json(birthdayMessage);
-    } catch (error) {
-      console.error(error);
-      res.status(500).send('Server Error');
-    }
-  });
+// Route to fetch today's birthdays
+router.get('/todays-birthdays', async (req, res) => {
+  try {
+    const today = new Date();
+    const day = today.getDate();
+    const month = today.getMonth() + 1; // Months are 0-indexed in JavaScript
+
+    // Fetch realtors with today's birthday
+    const realtors = await Realtor.find({
+      $expr: {
+        $and: [
+          { $eq: [{ $dayOfMonth: '$dateOfBirth' }, day] },
+          { $eq: [{ $month: '$dateOfBirth' }, month] },
+        ],
+      },
+    });
+
+    // Fetch clients with today's birthday
+    const clients = await Client.find({
+      $expr: {
+        $and: [
+          { $eq: [{ $dayOfMonth: '$dateOfBirth' }, day] },
+          { $eq: [{ $month: '$dateOfBirth' }, month] },
+        ],
+      },
+    });
+
+    // Combine results and add a 'type' field
+    const birthdays = [
+      ...realtors.map((realtor) => ({ ...realtor.toObject(), type: 'Realtor' })),
+      ...clients.map((client) => ({ ...client.toObject(), type: 'Client' })),
+    ];
+
+    res.json(birthdays);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server Error');
+  }
+});
 
 // Route to get today's birthdays
 router.get('/todays-birthdays', async (req, res) => {

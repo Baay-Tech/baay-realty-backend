@@ -48,26 +48,38 @@ const transporter = nodemailer.createTransport({
 router.post('/client/login', async (req, res) => {
   const { username, password } = req.body;
 
+
   try {
+    // Check if client exists
     const client = await Client.findOne({ username });
-    if (!client) return res.status(404).json({ message: 'Client not found' });
+    if (!client) {
+      console.log('Client not found:', username);
+      return res.status(404).json({ message: 'Username not found' });
+    }
 
+    // Compare passwords
     const isMatch = await bcrypt.compare(password, client.password);
-    if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
+    if (!isMatch) {
+      console.log('Invalid password for:', username);
+      return res.status(401).json({ message: 'Invalid password' });
+    }
 
-    const token = jwt.sign({ userId: client._id }, process.env.JWT_SECRET, { 
-      expiresIn: '24h' 
+    // Generate token
+    const token = jwt.sign({ userId: client._id }, process.env.JWT_SECRET, {
+      expiresIn: '24h',
     });
 
+    // Remove password from user data
     const userData = client.toObject();
     delete userData.password;
 
     res.status(200).json({ token, user: userData });
   } catch (error) {
-    console.log('Login error:', error);
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
+  
 
 
 

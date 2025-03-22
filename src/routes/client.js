@@ -14,6 +14,8 @@ const Reminder = require("../database/schema/reminder")
 const crypto = require("crypto")
 const MessageSupport = require("../database/schema/realtormessage")
 
+const Message = require("../database/schema/birthdaymessage")
+
 
 const transporter = nodemailer.createTransport({
     host: "smtp.zoho.com",
@@ -805,6 +807,44 @@ router.post('/auth/change-password', async (req, res) => {
     res.status(200).json({ message: 'Password changed successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to change password', error });
+  }
+});
+
+router.get("/birthday-message", async (req, res) => {
+  try {
+    const userId = req.query.userId; // Pass the user ID as a query parameter
+    const user = await Client.findById(userId);
+
+    if (!user) {
+      console.log("User not found");
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if today is the user's birthday
+    const today = new Date();
+    const userDob = new Date(user.dateOfBirth);
+
+    if (
+      today.getMonth() === userDob.getMonth() &&
+      today.getDate() === userDob.getDate()
+    ) {
+      // Fetch a random birthday message
+      const messages = await Message.find();
+      if (messages.length > 0) {
+        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+        console.log(randomMessage);
+        return res.json({ message: randomMessage.message });
+      } else {
+        console.log("Happy Birthday! 🎉");
+        return res.json({ message: "Happy Birthday! 🎉" }); // Default message
+      }
+    } else {
+      console.log("No birthday");
+      return res.json({ message: null }); // No birthday today
+    }
+  } catch (error) {
+    console.log("Error fetching birthday message:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
   
