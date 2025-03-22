@@ -330,6 +330,31 @@ router.put('/funds/:id', async (req, res) => {
     }
   });
   
+  // Create/Update message
+  router.post('/birthday-message', async (req, res) => {
+    try {
+      const { message } = req.body;
+      
+      // Find the most recent message
+      let birthdayMessage = await BirthdayMessage.findOne().sort({ createdAt: -1 });
+  
+      if (birthdayMessage) {
+        // Update existing message
+        birthdayMessage.message = message;
+        birthdayMessage.updatedAt = Date.now();
+      } else {
+        // Create new message
+        birthdayMessage = new BirthdayMessage({ message });
+      }
+  
+      await birthdayMessage.save();
+      res.json(birthdayMessage);
+    } catch (error) {
+      console.error(error);
+      res.status(500).send('Server Error');
+    }
+  });
+
 // Route to fetch today's birthdays
 router.get('/todays-birthdays', async (req, res) => {
   try {
@@ -338,11 +363,11 @@ router.get('/todays-birthdays', async (req, res) => {
     const month = today.getMonth() + 1; // Months are 0-indexed in JavaScript
 
     // Fetch realtors with today's birthday
-    const realtors = await Realtor.find({
+    const realtors = await RealtorUser.find({
       $expr: {
         $and: [
-          { $eq: [{ $dayOfMonth: '$dateOfBirth' }, day] },
-          { $eq: [{ $month: '$dateOfBirth' }, month] },
+          { $eq: [{ $dayOfMonth: '$dob' }, day] },
+          { $eq: [{ $month: '$dob' }, month] },
         ],
       },
     });
@@ -369,29 +394,6 @@ router.get('/todays-birthdays', async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
-
-// Route to get today's birthdays
-router.get('/todays-birthdays', async (req, res) => {
-    try {
-      const today = new Date();
-      const month = today.getMonth() + 1; // Months are 0-based in JS
-      const day = today.getDate();
-  
-      const celebrants = await RealtorUser.find({
-        $expr: {
-          $and: [
-            { $eq: [{ $month: "$dob" }, month] },
-            { $eq: [{ $dayOfMonth: "$dob" }, day] }
-          ]
-        }
-      }).select('firstName lastName username email phone dob');
-  
-      res.json(celebrants);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  });
 
 
 // Get withdrawals by status
