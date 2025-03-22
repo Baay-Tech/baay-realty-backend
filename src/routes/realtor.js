@@ -121,8 +121,10 @@ router.get("/profile/:username", async (req, res) => {
   
   // Edit Profile
 router.put("/edit-profile", async (req, res) => {
-    const { userId, firstName, lastName, phoneNumber, email, accountName, accountNumber, bankName, address, country, state,   } = req.body;
-     
+    const { userId, firstName, lastName, phoneNumber, email, accountName, accountNumber, bank, address, country, state,   } = req.body;
+    
+    console.log(req.body)
+
     try {
       const user = await Realtor.findById(userId);
       if (!user) {
@@ -136,7 +138,7 @@ router.put("/edit-profile", async (req, res) => {
       user.email = email || user.email;
       user.accountName = accountName || user.accountName;
       user.accountNumber = accountNumber || user.accountNumber;
-      user.bankName = bankName || user.bankName;
+      user.bank = bank || user.bank;
 
       user.address = address || user.address;
       user.country = country || user.country;
@@ -651,7 +653,7 @@ router.get('/view-commission', async (req, res) => {
       return res.status(400).json({ message: 'Realtor ID is required' });
     }
 
-    const commissions = await Commission.find({ realtorantId })
+    const commissions = await Commission.find({ realtorId })
 
     res.json(commissions);
   } catch (error) {
@@ -693,17 +695,18 @@ router.get('/referrals/:username', async (req, res) => {
 
 router.post('/testimonials/submit', async (req, res) => {
   try {
-    const { realtorId, realtorName, realtorEmail, title, content } = req.body;
+    const { realtorId, realtorName, realtorEmail, propertypurchased, content } = req.body;
     const newTestimonial = new PendingTestimonials({
       realtorId,
       realtorName,
       realtorEmail,
-      title,
+      propertypurchased,
       content,
     });
     await newTestimonial.save();
     res.status(201).json({ message: 'Testimonial submitted successfully' });
   } catch (error) {
+    console.log(error)
     res.status(500).json({ message: 'Error submitting testimonial', error });
   }
 });
@@ -727,6 +730,121 @@ router.get('/testimonials', async (req, res) => {
     res.status(500).json({ message: 'Error fetching testimonials', error });
   }
 });
+
+
+// Generate a 6-digit OTP
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// Check Email Endpoint
+router.post('/auth/check-email', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const realtor = await Realtor.findOne({ email });
+    if (!realtor) {
+      return res.status(404).json({ message: 'Email not found' });
+    }
+
+    res.status(200).json({ message: 'Email found' });
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+// Send OTP Endpoint
+router.post('/auth/send-otp', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const realtor = await Realtor.findOne({ email });
+    if (!realtor) {
+      return res.status(404).json({ message: 'Email not found' });
+    }
+
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
+
+    realtor.otp = otp;
+    realtor.otpExpires = otpExpires;
+    await realtor.save();
+
+    // Send OTP via email
+    const mailOptions = {
+      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      to: email,
+      subject: 'Your OTP for Password Reset',
+      text: `Your OTP is: ${otp}. It will expire in 10 minutes.`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: 'OTP sent successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to send OTP', error });
+  }
+});
+
+// Verify OTP Endpoint
+router.post('/auth/verify-otp', async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    const realtor = await Realtor.findOne({ email });
+    if (!realtor) {
+      return res.status(404).json({ message: 'Email not found' });
+    }
+
+    if (realtor.otp !== otp || realtor.otpExpires < new Date()) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    // Clear OTP after successful verification
+    realtor.otp = undefined;
+    realtor.otpExpires = undefined;
+    await realtor.save();
+
+    res.status(200).json({ message: 'OTP verified successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to verify OTP', error });
+  }
+});
+
+// Change Password Endpoint
+router.post('/auth/change-password', async (req, res) => {
+  const { email, newPassword } = req.body;
+
+  try {
+    const realtor = await Realtor.findOne({ email });
+    if (!realtor) {
+      return res.status(404).json({ message: 'Email not found' });
+    }
+
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    realtor.password = hashedPassword;
+    await realtor.save();
+
+    // Send confirmation email
+    const mailOptions = {
+      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      to: email,
+      subject: 'Password Changed Successfully',
+      text: 'Your password has been changed successfully. If you did not initiate this change, please contact our support team.',
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: 'Password changed successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to change password', error });
+  }
+});
+
 
   
 

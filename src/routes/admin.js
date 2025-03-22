@@ -1151,33 +1151,36 @@ const indirectCommissionEmailTemplate = (firstName, propertyName, propertyPrice,
 
 
 router.patch('/purchases/:id/status', async (req, res) => {
+  const session = await mongoose.startSession(); // Start a MongoDB session
+  session.startTransaction(); // Start a transaction
+
   try {
     const { id } = req.params;
     const { status } = req.body;
 
     // Find purchase by ID
-    const purchase = await Purchase.findById(id);
+    const purchase = await Purchase.findById(id).session(session);
     if (!purchase) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ message: 'Purchase not found' });
     }
 
-
     // Only proceed if status is being updated to 'confirmed'
     if (status === 'confirmed') {
-      const property = await Property.findById(purchase.property);
+      const property = await Property.findById(purchase.property).session(session);
       if (!property) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(404).json({ message: 'Property not found' });
       }
 
-      const realtor = await RealtorUser.findOne({ email: purchase.referralEmail });
-
-      console.log(realtor)
+      const realtor = await RealtorUser.findOne({ email: purchase.referralEmail }).session(session);
       if (!realtor) {
-        console.log('Realtor not found')
+        await session.abortTransaction();
+        session.endSession();
         return res.status(404).json({ message: 'Realtor not found' });
       }
-
-      console.log('Realtor found:', realtor);
 
       // Ensure `amount`, `commission`, and `indirectcommission` are numbers
       const purchaseAmount = Number(purchase.amount);
@@ -1185,20 +1188,20 @@ router.patch('/purchases/:id/status', async (req, res) => {
       const indirectCommissionRate = Number(property.indirectcommission);
 
       if (isNaN(purchaseAmount) || isNaN(commissionRate)) {
-        console.log('Invalid purchase amount or commission rate')
+        await session.abortTransaction();
+        session.endSession();
         return res.status(400).json({ message: 'Invalid purchase amount or commission rate' });
       }
 
       // Calculate direct commission
       const directCommissionAmount = (purchaseAmount * commissionRate) / 100;
-      console.log(`Direct commission calculated: ${directCommissionAmount}`);
 
       // Save direct commission to Realtor
       realtor.directCommission.push({
         amount: directCommissionAmount,
-        purchaseId: purchase._id
+        purchaseId: purchase._id,
       });
-      await realtor.save();
+      await realtor.save({ session });
 
       // Save direct commission transaction
       const directCommission = new Commission({
@@ -1211,72 +1214,80 @@ router.patch('/purchases/:id/status', async (req, res) => {
           firstName: purchase.ClientfirstName,
           lastName: purchase.ClientlastName,
           email: purchase.Clientemail,
-          phone: purchase.Clientphone
+          phone: purchase.Clientphone,
         },
         propertyDetails: {
           propertyId: purchase.property,
           propertyName: property.propertyName,
-          amountPaid: purchase.amount
-        }
+          amountPaid: purchase.amount,
+        },
       });
-      await directCommission.save();
-
-      console.log('Direct commission saved successfully.');
+      await directCommission.save({ session });
 
       // Handle indirect commission (if Realtor has an upline)
       let indirectCommissionAmount = 0;
+      let uplineRealtor = null;
+
       if (realtor.upline && realtor.upline.email) {
-        const uplineRealtor = await RealtorUser.findOne({ email: realtor.upline.email });
+        uplineRealtor = await RealtorUser.findOne({ email: realtor.upline.email }).session(session);
         if (uplineRealtor) {
           if (isNaN(indirectCommissionRate)) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(400).json({ message: 'Invalid indirect commission rate' });
           }
 
           indirectCommissionAmount = (purchaseAmount * indirectCommissionRate) / 100;
-          console.log(`Indirect commission calculated: ${indirectCommissionAmount}`);
 
           // Save indirect commission to upline Realtor
           uplineRealtor.indirectCommission.push({
             amount: indirectCommissionAmount,
-            purchaseId: purchase._id
+            purchaseId: purchase._id,
           });
-          await uplineRealtor.save();
+          await uplineRealtor.save({ session });
 
           // Save indirect commission transaction
           const indirectCommission = new Commission({
             type: 'indirect',
             amount: indirectCommissionAmount,
             purchaseId: purchase._id,
-            realtorId: uplineRealtor._id,
+            realtorantId: uplineRealtor._id,
             clientDetails: {
               clientId: purchase.client,
               firstName: purchase.ClientfirstName,
               lastName: purchase.ClientlastName,
               email: purchase.Clientemail,
-              phone: purchase.Clientphone
+              phone: purchase.Clientphone,
             },
             propertyDetails: {
               propertyId: purchase.property,
               propertyName: property.propertyName,
-              amountPaid: purchase.amount
-            }
+              amountPaid: purchase.amount,
+            },
           });
-          await indirectCommission.save();
-          console.log('Indirect commission saved successfully.');
+          await indirectCommission.save({ session });
         }
       }
 
-      // Send emails
+      // Update the purchase status to 'confirmed'
+      purchase.status = 'confirmed';
+      await purchase.save({ session });
+
+      // Commit the transaction if everything succeeds
+      await session.commitTransaction();
+      session.endSession();
+
+      // Send emails after the transaction is committed
       const clientEmailSent = await sendEmail(
         purchase.Clientemail,
-        "Payment Proof Confirmed - Baay Realty",
+        'Payment Proof Confirmed - Baay Realty',
         clientEmailTemplate(purchase.ClientfirstName, property.propertyName)
       );
 
       const directCommissionEmailSent = await sendEmail(
         realtor.email,
-        "Direct Commission Received - Baay Realty", // Specific subject
-        directCommissionEmailTemplate( // Use direct template
+        'Direct Commission Received - Baay Realty',
+        directCommissionEmailTemplate(
           realtor.firstName,
           property.propertyName,
           purchase.amount,
@@ -1286,13 +1297,13 @@ router.patch('/purchases/:id/status', async (req, res) => {
           directCommissionAmount
         )
       );
-      
-      // For Indirect Commission
-      if (realtor.upline && realtor.upline.email) {
+
+      let indirectCommissionEmailSent = true;
+      if (uplineRealtor) {
         indirectCommissionEmailSent = await sendEmail(
-          realtor.upline.email,
-          "Indirect Commission Received - Baay Realty", // Specific subject
-          indirectCommissionEmailTemplate( // Use indirect template
+          uplineRealtor.email,
+          'Indirect Commission Received - Baay Realty',
+          indirectCommissionEmailTemplate(
             uplineRealtor.firstName,
             property.propertyName,
             purchase.amount,
@@ -1304,36 +1315,21 @@ router.patch('/purchases/:id/status', async (req, res) => {
         );
       }
 
-      let indirectCommissionEmailSent = true;
-      if (realtor.upline && realtor.upline.email) {
-        indirectCommissionEmailSent = await sendEmail(
-          realtor.upline.email,
-          "Indirect Commission Received - Baay Realty",
-          commissionEmailTemplate(
-            realtor.upline.firstName,
-            property.propertyName,
-            purchase.amount,
-            `${purchase.ClientfirstName} ${purchase.ClientlastName}`,
-            purchase.Clientemail,
-            purchase.Clientphone,
-            indirectCommissionAmount
-          )
-        );
-      }
-
       if (!clientEmailSent || !directCommissionEmailSent || !indirectCommissionEmailSent) {
-        return res.status(500).json({ message: "Failed to send one or more emails" });
+        return res.status(500).json({ message: 'Failed to send one or more emails' });
       }
 
-      // Finally, update the purchase status to 'confirmed'
-      purchase.status = 'confirmed';
-      await purchase.save();
-      console.log('Purchase status updated successfully.');
+      res.json(purchase);
+    } else {
+      await session.abortTransaction();
+      session.endSession();
+      res.json(purchase);
     }
-
-    res.json(purchase);
   } catch (error) {
-    console.log("Error updating purchase status:", error);
+    // Abort the transaction on error
+    await session.abortTransaction();
+    session.endSession();
+    console.error('Error updating purchase status:', error);
     res.status(400).json({ message: error.message, stack: error.stack });
   }
 });

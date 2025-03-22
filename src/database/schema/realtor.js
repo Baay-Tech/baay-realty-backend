@@ -53,7 +53,9 @@ const RealtorSchema = new mongoose.Schema({
       purchaseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Purchase' },
       date: { type: Date, default: Date.now }
     }
-  ]
+  ],
+  otp: { type: String },
+  otpExpires: { type: Date },
 });
 
 // Middleware to update balance whenever funding, directCommission, or indirectCommission changes

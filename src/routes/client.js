@@ -692,6 +692,121 @@ router.post('/support', async (req, res) => {
   }
 });
   
+
+// Generate a 6-digit OTP
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+
+// Check Email Endpoint
+router.post('/auth/check-email', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await Client.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'Email not found' });
+    }
+
+    res.status(200).json({ message: 'Email found' });
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+// Send OTP Endpoint
+router.post('/auth/send-otp', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await Client.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'Email not found' });
+    }
+
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
+
+    user.otp = otp;
+    user.otpExpires = otpExpires;
+    await user.save();
+
+    // Send OTP via email
+    const mailOptions = {
+      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      to: email,
+      subject: 'Your OTP for Password Reset',
+      text: `Your OTP is: ${otp}. It will expire in 10 minutes.`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: 'OTP sent successfully' });
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ message: 'Failed to send OTP', error });
+  }
+});
+
+// Verify OTP Endpoint
+router.post('/auth/verify-otp', async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    const user = await Client.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'Email not found' });
+    }
+
+    if (user.otp !== otp || user.otpExpires < new Date()) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    // Clear OTP after successful verification
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ message: 'OTP verified successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to verify OTP', error });
+  }
+});
+
+// Change Password Endpoint
+router.post('/auth/change-password', async (req, res) => {
+  const { email, newPassword } = req.body;
+
+  try {
+    const user = await Client.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'Email not found' });
+    }
+
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    user.password = hashedPassword;
+    await user.save();
+
+    // Send confirmation email
+    const mailOptions = {
+      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      to: email,
+      subject: 'Password Changed Successfully',
+      text: 'Your password has been changed successfully. If you did not initiate this change, please contact our support team.',
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: 'Password changed successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to change password', error });
+  }
+});
   
 
 
