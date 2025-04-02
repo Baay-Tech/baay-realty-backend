@@ -37,6 +37,8 @@
         "passport-jwt": "^4.0.1",
         "passport-local": "^1.0.0",
         "path": "^0.12.7",
-        "pdfkit": "^0.15.0"
+        "pdfkit": "^0.15.0",
+        "socket.io": "^4.8.1",
+        "ws": "^8.18.1"
     }
 }

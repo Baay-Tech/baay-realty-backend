@@ -10,8 +10,27 @@ const nodemailer = require('nodemailer');
 
 const Admin = require('../database/schema/admin');
 
+const Activity = require('../database/schema/acivity');
 
 
+const logActivity = async (userId, userModel, role, activityType, description, req, metadata = {}) => {
+  try {
+    const activity = new Activity({
+      userId,
+      userModel,
+      role,
+      activityType,
+      description,
+      ipAddress: req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      metadata
+    });
+    
+    await activity.save();
+  } catch (error) {
+    console.error('Error logging activity:', error);
+  }
+};
 
 
 
@@ -45,40 +64,55 @@ const transporter = nodemailer.createTransport({
 
 
 
-router.post('/client/login', async (req, res) => {
-  const { username, password } = req.body;
+  router.post('/client/login', async (req, res) => {
+    const { username, password } = req.body;
+  
+    try {
+      // Find user by username
+      const user = await Client.findOne({ username });
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      // Compare passwords
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
 
+        return res.status(401).json({ message: 'Invalid password' });
+      }
+  
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user._id, role: 'client' },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+  
+      // Log successful login
+      await logActivity(
+        user._id,
+        'client',
+        'client',
+        'login',
+        'Successful login',
+        req,
+        {
+          loginMethod: 'username_password',
 
-  try {
-    // Check if client exists
-    const client = await Client.findOne({ username });
-    if (!client) {
-      console.log('Client not found:', username);
-      return res.status(404).json({ message: 'Username not found' });
+        }
+      );
+  
+      // Return token and user data (excluding password)
+      const userData = { ...user._doc };
+      delete userData.password;
+  
+      res.status(200).json({ token, user: userData });
+    } catch (error) {
+      console.error('Login error:', error);
+     
+      res.status(500).json({ message: 'Server error' });
     }
-
-    // Compare passwords
-    const isMatch = await bcrypt.compare(password, client.password);
-    if (!isMatch) {
-      console.log('Invalid password for:', username);
-      return res.status(401).json({ message: 'Invalid password' });
-    }
-
-    // Generate token
-    const token = jwt.sign({ userId: client._id }, process.env.JWT_SECRET, {
-      expiresIn: '24h',
-    });
-
-    // Remove password from user data
-    const userData = client.toObject();
-    delete userData.password;
-
-    res.status(200).json({ token, user: userData });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+  });
   
 
 
@@ -282,6 +316,29 @@ router.post('/realtor/register', async (req, res) => {
       date: new Date()
     });
 
+    await Activity.create({
+      userId: newRealtor._id,
+      userModel: 'Realtor',
+      role: "realtor",
+      activityType: 'Signup',
+      description: 'Successful Signup',
+      ipAddress: req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+      userAgent: req.headers['user-agent'],
+    });
+
+  
+    const notification = {
+      type: 'registration',
+      title: 'New Realtor Registration',
+      message: `${newRealtor.firstName} ${newRealtor.lastName} just registered as a Realtor`,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Get the io instance and emit notification
+    const io = req.app.get('io');
+    io.emit('notification', notification);
+
+
     await referringRealtor.save({ session });
     await newRealtor.save({ session });
     await session.commitTransaction();
@@ -306,38 +363,67 @@ router.post('/realtor/register', async (req, res) => {
 });
 
 
-// Realtor Login
+// Realtor Login with Activity Tracking
 router.post('/realtor/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    console.log(req.body)
-
     // Find user
     const user = await Realtor.findOne({ username });
     if (!user) {
-      return res.status(401).json({ message: 'No user with this username exit' });
+      
+      return res.status(401).json({ message: 'No user with this username exists' });
     }
-
-    console.log(user.password)
 
     // Verify password
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) {
-      console.log('Invalid password')
+      
       return res.status(401).json({ message: 'Invalid password' });
     }
 
     // Generate JWT
     const token = jwt.sign(
-      { userId: user._id},
+      { userId: user._id },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
+    // Log successful login
+    await Activity.create({
+      userId: user._id,
+      userModel: 'Realtor',
+      role: "realtor",
+      activityType: 'login',
+      description: 'Successful login',
+      ipAddress: req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      metadata: {
+        loginMethod: 'username_password',
+      }
+    });
+
+    // Update last login time
+    user.lastLogin = new Date();
+    await user.save();
+
     // Return user data (excluding password)
     const userData = user.toObject();
     delete userData.password;
+
+    // Log successful login
+    await logActivity(
+      user._id,
+      'Realtor',
+      'realtor',
+      'login',
+      'Successful login',
+      req,
+      {
+        loginMethod: 'username_password',
+      }
+    );
+
 
     res.status(200).json({
       message: 'Login successful',
@@ -345,13 +431,16 @@ router.post('/realtor/login', async (req, res) => {
       user: userData
     });
 
+    
+
   } catch (error) {
-    console.log(error);
+    console.error('Login error:', error);
+    
+   
+    
     res.status(500).json({ message: 'Server error' });
   }
 });
-
-
 
 
 router.post("/admin/login", async (req, res) => {
@@ -370,20 +459,63 @@ router.post("/admin/login", async (req, res) => {
     });
 
     if (!admin) {
+      await logActivity(
+        null,
+        'Admin',
+        'admin',
+        'login',
+        'Failed login attempt - admin not found',
+        req,
+        {
+          usernameAttempt: username,
+          status: 'failed',
+          reason: 'admin_not_found',
+          adminType
+        }
+      );
       return res.status(401).json({ message: `Invalid ${adminType} credentials` });
     }
 
-    // Compare password (assuming passwords are hashed with bcrypt)
+    // Compare password
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
+      await logActivity(
+        admin._id,
+        'Admin',
+        'admin',
+        'login',
+        'Failed login attempt - incorrect password',
+        req,
+        {
+          usernameAttempt: username,
+          status: 'failed',
+          reason: 'incorrect_password',
+          adminType
+        }
+      );
       return res.status(401).json({ message: "Invalid password" });
     }
 
     // Generate JWT with adminType included
     const token = jwt.sign(
-      { id: admin._id, username: admin.email, adminType: admin.adminType }, 
+      { id: admin._id, username: admin.email, role: 'admin', adminType: admin.adminType }, 
       process.env.JWT_SECRET, 
       { expiresIn: "24h" }
+    );
+
+    // Log successful login
+    await logActivity(
+      admin._id,
+      'Admin',
+      'admin',
+      'login',
+      'Successful admin login',
+      req,
+      {
+        loginMethod: 'username_password',
+        deviceType: getDeviceType(req.headers['user-agent']),
+        adminType: admin.adminType
+      }
     );
 
     res.json({ 
@@ -396,40 +528,21 @@ router.post("/admin/login", async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error);
+    await logActivity(
+      null,
+      'Admin',
+      'admin',
+      'login',
+      'Admin login error occurred',
+      req,
+      {
+        error: error.message,
+        status: 'error',
+        adminType: req.body.adminType
+      }
+    );
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-
-router.post('/client/login', async (req, res) => {
-  const { username, password } = req.body;
-
-  try {
-    // Find user by username
-    const user = await Realtor.findOne({ username });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Compare passwords
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid password' });
-    }
-
-    // Generate JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-    // Return token and user data (excluding password)
-    const userData = { ...user._doc };
-    delete userData.password;
-
-    res.status(200).json({ token, user: userData });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
 
 module.exports = router;

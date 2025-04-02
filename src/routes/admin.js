@@ -28,6 +28,36 @@ const bcrypt = require("bcryptjs")
 const PendingTestimonials = require("../database/schema/PendingTestimonialsSchema")
 const Testimonial = require("../database/schema/Testimonial")
 
+const Activity = require('../database/schema/acivity');
+
+
+
+const logActivity = async (userId, userModel, role, activityType, description, metadata = {}, req) => {
+  try {
+    const activityData = {
+      userModel,
+      role,
+      activityType,
+      description,
+      metadata
+    };
+
+    // Add user agent if request object is provided
+    if (req && req.headers) {
+      activityData.userAgent = req.headers['user-agent'];
+    }
+
+    // Only add userId if provided
+    if (userId) {
+      activityData.userId = userId;
+    }
+
+    await Activity.create(activityData);
+  } catch (error) {
+    console.error('Error logging activity:', error);
+  }
+};
+
 
 
 // Email Transporter Configuration
@@ -169,6 +199,8 @@ router.put('/funds/:id', async (req, res) => {
   try {
     const { status, amount } = req.body;
     const { id } = req.params;
+    const io = req.app.get('io');
+    const connectedUsers = req.app.get('connectedUsers');
 
     console.log(req.body);
 
@@ -181,6 +213,39 @@ router.put('/funds/:id', async (req, res) => {
     }
 
     const { email, firstName, lastName, user } = fund;
+
+   // Log admin activity (pass req as last parameter)
+   await logActivity(
+    null,
+    'Admin',
+    "admin",
+    'fund_approval',
+    'fund request',
+    {
+      fundId: id,
+      amount: amount,
+      status: status,
+      userId: user,
+      userEmail: email
+    },
+    req // Add this parameter
+  );
+
+  // Log user activity (pass req as last parameter)
+  await logActivity(
+    user,
+    'Realtor',
+    'realtor',
+    'fund_status_update',
+    `Your fund request was ${status} by admin`,
+    {
+      fundId: id,
+      amount: amount,
+      status: status,
+      adminName: 'admin'
+    },
+    req // Add this parameter
+  );
 
     if (!user) {
       console.log('User ID is missing in the fund document');
@@ -220,6 +285,15 @@ router.put('/funds/:id', async (req, res) => {
       `;
 
       try {
+
+        // Send notification to realtor
+      io.to(`realtor_${user}`).emit('notification', {
+        title: 'Funds Approved',
+        message: `Your fund request of ₦${amount} has been approved`,
+        type: 'fund_approved',
+        amount: amount,
+        timestamp: new Date()
+      });
         // Update the user's funding and balance
         const userDoc = await RealtorUser.findById(user);
         if (!userDoc) {
@@ -283,6 +357,14 @@ router.put('/funds/:id', async (req, res) => {
         </div>
       `;
     } else {
+      // Send rejection notification to realtor
+      io.to(`realtor_${user}`).emit('notification', {
+        title: 'Funds Rejected',
+        message: `Your fund request of ₦${amount} was rejected`,
+        type: 'fund_rejected',
+        amount: amount,
+        timestamp: new Date()
+      });
       return res.status(400).json({ message: "Invalid status" });
     }
 
@@ -415,11 +497,41 @@ router.put('/withdrawals/:id', async (req, res) => {
     try {
         const { status } = req.body;
         const withdrawal = await Realtorwithdrawalrequest.findById(req.params.id);
+        const io = req.app.get('io');
 
         if (!withdrawal) return res.status(404).json({ message: 'Withdrawal request not found' });
 
         const { email, firstName, lastName } = withdrawal;
         let subject, htmlContent;
+
+        // Log admin activity
+    await logActivity(
+      null,
+      'Admin',
+       "admin", // 'admin' or 'superadmin'
+      'withdrawal_approval',
+      'withdrawal request',
+      {
+        withdrawalId: withdrawal._id,
+        amount: withdrawal.amount,
+        status: status,
+        userId: withdrawal.user,
+        userEmail: email
+      }
+    );
+
+    await logActivity(
+      withdrawal.user,
+      'Realtor',
+      'realtor',
+      'withdrawal_status_update',
+      `Your withdrawal request was ${status} by admin`,
+      {
+        withdrawalId: withdrawal._id,
+        amount: withdrawal.amount,
+        status: status,
+      }
+    );
 
         if (status === "approved") {
             subject = "✅ Withdrawal Request Approved!";
@@ -450,6 +562,15 @@ router.put('/withdrawals/:id', async (req, res) => {
                     </div>
                 </div>
             `;
+
+             // Send approval notification to realtor
+      io.to(`realtor_${withdrawal.user}`).emit('notification', {
+        title: 'Withdrawal Approved',
+        message: `Your withdrawal request of ₦${withdrawal.amount} has been approved`,
+        type: 'withdrawal_approved',
+        amount: withdrawal.amount,
+        timestamp: new Date()
+      });
         } else if (status === "rejected") {
             subject = "⚠️ Withdrawal Request Rejected!";
             htmlContent = `
@@ -480,6 +601,14 @@ router.put('/withdrawals/:id', async (req, res) => {
                     </div>
                 </div>
             `;
+            // Send rejection notification to realtor
+      io.to(`realtor_${withdrawal.user}`).emit('notification', {
+        title: 'Withdrawal Rejected',
+        message: `Your withdrawal request of ₦${withdrawal.amount} was rejected`,
+        type: 'withdrawal_rejected',
+        amount: withdrawal.amount,
+        timestamp: new Date()
+      });
         } else {
             return res.status(400).json({ message: "Invalid status" });
         }
@@ -623,6 +752,8 @@ router.post('/properties', async (req, res) => {
       indirectcommission
     } = req.body;
 
+    const io = req.app.get('io');
+
     console.log("Creating new property:", req.body);
 
     const newProperty = new Property({
@@ -682,6 +813,17 @@ router.post('/properties', async (req, res) => {
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
+
+    // Send notification to each realtor
+    realtors.forEach(realtor => {
+      io.to(`realtor_${realtor._id}`).emit('notification', {
+        title: 'New Property Available',
+        message: `A new property "${savedProperty.propertyName}" has been added`,
+        type: 'new_property',
+        propertyId: savedProperty._id,
+        timestamp: new Date()
+      });
+    });
     
     console.log("Property notification emails sent successfully");
     
@@ -732,15 +874,15 @@ router.put('/properties/:id', async (req, res) => {
   }
 });
   
-  // Delete property
-  router.delete('/properties/:id', async (req, res) => {
-    try {
-      await Property.findByIdAndDelete(req.params.id);
-      res.json({ message: 'Property deleted' });
-    } catch (err) {
-      res.status(500).json({ message: err.message });
-    }
-  });
+// Delete property
+router.delete('/properties/:id', async (req, res) => {
+  try {
+    await Property.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Property deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 
 // Add FAQ
@@ -753,7 +895,7 @@ router.post("/faq", async (req, res) => {
     } catch (err) {
       res.status(500).json({ message: "Failed to add FAQ", error: err.message });
     }
-  });
+});
   
   // Fetch all properties for dropdown
   router.get("/faq/properties", async (req, res) => {
@@ -847,19 +989,57 @@ router.get("/ticket", async (req, res) => {
   router.post("/ticket/:id/reply", async (req, res) => {
     try {
       const { content } = req.body;
+      const { io } = req.app.locals;
       const ticket = await Messages.findById(req.params.id);
+      
       if (!ticket) {
         return res.status(404).json({ message: "Ticket not found" });
       }
   
+      // Add admin reply
       ticket.messages.push({ sender: "admin", content });
-      ticket.status = "pending"; // Update status to pending after admin reply
+      ticket.status = "pending";
       ticket.updatedAt = Date.now();
+      
       await ticket.save();
+  
+      // Determine user type (default to 'client' if not specified)
+      const userType = ticket.userType || 'client';
+      const roomName = `${userType}_${ticket.user}`;
+      
+      console.log(`Preparing to notify ${roomName} about ticket reply`);
+  
+      // Create notification payload
+      const notification = {
+        title: 'New Reply to Your Ticket',
+        message: `Admin replied to your support ticket: ${ticket.subject}`,
+        type: 'support_reply',
+        ticketId: ticket._id,
+        timestamp: new Date()
+      };
+  
+      // Log activity
+      await Activity.create({
+        userId: ticket.user,
+        userModel: userType === 'client' ? 'client' : 'Realtor',
+        role: userType,
+        activityType: 'support_message',
+        description: 'You have a new reply to your support ticket',
+        metadata: {
+          ticketId: ticket._id,
+          subject: ticket.subject,
+          content: content
+        }
+      });
+  
+      // Send notification to specific room
+      console.log(`Emitting to room: ${roomName}`);
+      io.to(roomName).emit('notification', notification);
+      console.log('Notification emitted:', notification);
   
       res.json({ message: "Reply sent successfully", ticket });
     } catch (err) {
-        console.log(err)
+      console.error("Error in ticket reply:", err);
       res.status(500).json({ message: "Failed to send reply", error: err.message });
     }
   });
@@ -937,17 +1117,17 @@ router.get('/viewrealtors/:id', async (req, res) => {
 });
   
   // Delete realtors
-  router.delete('/delete/:id', async (req, res) => {
-    try {
-        const realtor = await RealtorUser.findByIdAndDelete(req.params.id);
-        if (!realtor) {
-          return res.status(404).json({ message: 'realtor not found' });
-        }
-        res.status(200).json({ message: 'Realtor deleted successfully' });
-      } catch (error) {
-        res.status(500).json({ message: 'Error deleting realtor' });
+router.delete('/delete/:id', async (req, res) => {
+  try {
+      const realtor = await RealtorUser.findByIdAndDelete(req.params.id);
+      if (!realtor) {
+        return res.status(404).json({ message: 'realtor not found' });
       }
-  });
+      res.status(200).json({ message: 'Realtor deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Error deleting realtor' });
+    }
+});
 
 
   router.post('/send-birthday-email', async (req, res) => {
@@ -1174,6 +1354,7 @@ router.patch('/purchases/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const io = req.app.get('io'); // Get Socket.IO instance
 
     // Find purchase by ID
     const purchase = await Purchase.findById(id).session(session);
@@ -1182,6 +1363,34 @@ router.patch('/purchases/:id/status', async (req, res) => {
       session.endSession();
       return res.status(404).json({ message: 'Purchase not found' });
     }
+
+    await logActivity(
+      null,
+      'Admin',
+      "admin",
+      'purchase_confirmation',
+      `confirmed purchase for property ${purchase.propertyName}`,
+      {
+        purchaseId: purchase._id,
+        propertyId: purchase.property,
+        clientId: purchase.client,
+        amount: purchase.amount
+      }
+    );
+
+    // Log client activity
+    await logActivity(
+      purchase.client,
+      'client',
+      'client',
+      'purchase_confirmed',
+      `Your purchase of ${purchase.propertyName} was confirmed`,
+      {
+        purchaseId: purchase._id,
+        propertyId: purchase.property,
+        amount: purchase.amount,
+      }
+    );
 
     // Only proceed if status is being updated to 'confirmed'
     if (status === 'confirmed') {
@@ -1198,6 +1407,8 @@ router.patch('/purchases/:id/status', async (req, res) => {
         session.endSession();
         return res.status(404).json({ message: 'Realtor not found' });
       }
+
+     
 
       // Ensure `amount`, `commission`, and `indirectcommission` are numbers
       const purchaseAmount = Number(purchase.amount);
@@ -1241,6 +1452,22 @@ router.patch('/purchases/:id/status', async (req, res) => {
       });
       await directCommission.save({ session });
 
+      if (realtor) {
+        await logActivity(
+          realtor._id,
+          'Realtor',
+          'realtor',
+          'direct_commission',
+          `You earned direct commission from ${purchase.ClientfirstName}'s purchase`,
+          {
+            purchaseId: purchase._id,
+            propertyId: purchase.property,
+            clientId: purchase.client,
+            amount: directCommissionAmount
+          }
+        );
+      }
+
       // Handle indirect commission (if Realtor has an upline)
       let indirectCommissionAmount = 0;
       let uplineRealtor = null;
@@ -1252,6 +1479,22 @@ router.patch('/purchases/:id/status', async (req, res) => {
             await session.abortTransaction();
             session.endSession();
             return res.status(400).json({ message: 'Invalid indirect commission rate' });
+          }
+
+          if (uplineRealtor) {
+            await logActivity(
+              uplineRealtor._id,
+              'Realtor',
+              'realtor',
+              'indirect_commission',
+              `You earned indirect commission from ${purchase.ClientfirstName}'s purchase`,
+              {
+                purchaseId: purchase._id,
+                propertyId: purchase.property,
+                clientId: purchase.client,
+                amount: indirectCommissionAmount
+              }
+            );
           }
 
           indirectCommissionAmount = (purchaseAmount * indirectCommissionRate) / 100;
@@ -1293,6 +1536,42 @@ router.patch('/purchases/:id/status', async (req, res) => {
       // Commit the transaction if everything succeeds
       await session.commitTransaction();
       session.endSession();
+
+      try {
+        // Notification to Client
+        io.to(`client_${purchase.client}`).emit('notification', {
+          title: 'Purchase Confirmed',
+          message: `Your purchase of ${property.propertyName} has been confirmed`,
+          type: 'purchase_confirmed',
+          purchaseId: purchase._id,
+          timestamp: new Date()
+        });
+
+        // Notification to Direct Commission Realtor
+        io.to(`realtor_${realtor._id}`).emit('notification', {
+          title: 'Direct Commission Earned',
+          message: `You earned ₦${directCommissionAmount} from ${purchase.ClientfirstName}'s purchase`,
+          type: 'direct_commission',
+          amount: directCommissionAmount,
+          purchaseId: purchase._id,
+          timestamp: new Date()
+        });
+
+        // Notification to Indirect Commission Realtor (if exists)
+        if (uplineRealtor) {
+          io.to(`realtor_${uplineRealtor._id}`).emit('notification', {
+            title: 'Indirect Commission Earned',
+            message: `You earned ₦${indirectCommissionAmount} from ${purchase.ClientfirstName}'s purchase`,
+            type: 'indirect_commission',
+            amount: indirectCommissionAmount,
+            purchaseId: purchase._id,
+            timestamp: new Date()
+          });
+        }
+      } catch (socketError) {
+        console.error('Failed to send notifications:', socketError);
+        // Notifications failed but transaction was successful
+      }
 
       // Send emails after the transaction is committed
       const clientEmailSent = await sendEmail(
@@ -1444,7 +1723,11 @@ router.get('/purchases/incomplete', async (req, res) => {
 // Add a reminder
 router.post('/reminders', async (req, res) => {
   try {
-    const { purchaseId, propertyName, propertyActualPrice, amountRemaining, nextPaymentDate, Clientemail, scheduledDate } = req.body;
+    const { purchaseId, propertyName, propertyActualPrice, amountRemaining, nextPaymentDate, Clientemail, scheduledDate, clientId
+
+
+
+     } = req.body;
 
     console.log(req.body)
 
@@ -1459,6 +1742,33 @@ router.post('/reminders', async (req, res) => {
         Clientemail,
       });
     }
+
+    // Log admin activity
+    await logActivity(
+      null,
+      'Admin',
+      "admin",
+      'reminder_created',
+      `Admin created a payment reminder for ${propertyName}`,
+      {
+        purchaseId,
+        propertyName,
+        clientEmail: Clientemail
+      }
+    );
+
+    // Log client activity
+    await logActivity(
+      clientId,
+      'Client',
+      'client',
+      'payment_reminder',
+      `Payment reminder created for your purchase of ${propertyName}`,
+      {
+        purchaseId,
+        propertyName,
+      }
+    );
 
     reminder.reminders.push({ amountRemaining, nextPaymentDate, scheduledDate });
     await reminder.save();
@@ -1621,29 +1931,66 @@ router.get('/testimonial/accepted', async (req, res) => {
 router.post('/testimonial/accept', async (req, res) => {
   try {
     const { testimonialId } = req.body;
+    const io = req.app.get('io');
     
     // Find the pending testimonial
     const pendingTestimonial = await PendingTestimonials.findById(testimonialId);
+
+    console.log(pendingTestimonial)
     
     if (!pendingTestimonial) {
       return res.status(404).json({ message: 'Testimonial not found' });
     }
+
+    // Log admin activity
+    await logActivity(
+      null,
+      'Admin',
+      "admin",
+      'testimonial_approval',
+      `Admin approved testimonial from ${pendingTestimonial.realtorName}`,
+      {
+        testimonialId: pendingTestimonial._id,
+        realtorId: pendingTestimonial.realtorId,
+        realtorName: pendingTestimonial.realtorName
+      }
+    );
     
     // Create a new accepted testimonial
     const newTestimonial = new Testimonial({
       realtorId: pendingTestimonial.realtorId,
       realtorName: pendingTestimonial.realtorName,
       realtorEmail: pendingTestimonial.realtorEmail,
-      title: pendingTestimonial.title,
+      propertypurchased: pendingTestimonial.propertypurchased,
       content: pendingTestimonial.content,
       dateSubmitted: pendingTestimonial.dateSubmitted
     });
+
+
+    // Log realtor activity
+    await logActivity(
+      pendingTestimonial.realtorId,
+      'Realtor',
+      'realtor',
+      'testimonial_approved',
+      `Your testimonial was approved by admin`,
+      {
+        testimonialId: pendingTestimonial._id,
+      }
+    );
     
     // Save the new testimonial
     await newTestimonial.save();
     
     // Delete the pending testimonial
     await PendingTestimonials.findByIdAndDelete(testimonialId);
+
+    io.to(`realtor_${pendingTestimonial.realtorId}`).emit('notification', {
+      title: 'Testimonial Approved',
+      message: 'Your testimonial has been approved and published',
+      type: 'testimonial_approved',
+      timestamp: new Date()
+    });
     
     res.json({ message: 'Testimonial accepted successfully' });
   } catch (error) {
@@ -1685,6 +2032,52 @@ router.delete('/testimonial/accepted/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting testimonial:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+// Get notifications for user
+router.get('/notifications/:userRole', async (req, res) => {
+  try {
+    const user = req.user; // Assuming you have auth middleware
+    const notifications = await Notification.find({
+      userId: user._id,
+      userRole: req.params.userRole
+    }).sort({ createdAt: -1 }).limit(10);
+    
+    const unreadCount = await Notification.countDocuments({
+      userId: user._id,
+      userRole: req.params.userRole,
+      read: false
+    });
+    
+    res.json({ notifications, unreadCount });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching notifications' });
+  }
+});
+
+// Mark notification as read
+router.post('/notifications/mark-read/:id', async (req, res) => {
+  try {
+    await Notification.findByIdAndUpdate(req.params.id, { read: true });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking notification as read' });
+  }
+});
+
+// Mark all notifications as read
+router.post('/notifications/mark-all-read', async (req, res) => {
+  try {
+    const user = req.user;
+    await Notification.updateMany(
+      { userId: user._id, read: false },
+      { $set: { read: true } }
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking notifications as read' });
   }
 });
 

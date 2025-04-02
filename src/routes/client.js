@@ -15,6 +15,7 @@ const crypto = require("crypto")
 const MessageSupport = require("../database/schema/realtormessage")
 
 const Message = require("../database/schema/birthdaymessage")
+const Activity = require('../database/schema/acivity');
 
 
 const transporter = nodemailer.createTransport({
@@ -370,9 +371,47 @@ router.post('/signup', async (req, res) => {
             return res.status(500).json({ message: "Failed to notify the admin team" });
         }
 
+        
+
+
+        // Log the registration activity
+        await Activity.create({
+          userId: user._id,
+          userModel: 'client',
+          role: 'client',
+          activityType: 'registration',
+          description: 'New client registration',
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+          metadata: {
+              email: user.email,
+              phone: user.phone,
+              propertyId: propertyId
+          }
+      });
+
+      try {
+        const io = req.app.get('io');
+        io.to('admin_room').emit('notification', {
+            title: 'New Client Registration',
+            message: `${firstName} ${lastName} has registered as a client`,
+            type: 'registration',
+            userId: user._id,
+            timestamp: new Date(),
+            metadata: {
+                email: email,
+                phone: phone,
+                property: propertyName
+            }
+        });
+
         // Save user and purchase records
         await user.save();
         await purchase.save();
+    } catch (socketError) {
+        console.error('Failed to send notification:', socketError);
+        // Continue with registration even if notification fails
+    }
 
 
         // If referred, add the new user to the referrer's `Clientreferrals` list
@@ -601,6 +640,16 @@ try {
     return res.status(500).json({ message: "Failed to send confirmation email to client" });
     }
 
+
+    // After purchase creation, emit notification
+    const notification = {
+      type: 'purchase',
+      title: 'New Property Purchase',
+      message: `${req.body.ClientfirstName} ${req.body.ClientlastName} purchased ${req.body.propertyName}`,
+      timestamp: new Date().toISOString()
+    };
+    
+    io.emit('notification', notification);
     // Send email to admin
     const adminEmailSent = await sendEmail(
     ["Favoursunday600@gmail.com", "clientrelations.baaypoorojects@gmail.com"],
@@ -671,7 +720,7 @@ try {
 
 router.post('/support', async (req, res) => {
   try {
-      console.log(req.body)
+    const { user, firstName, lastName, username, phone, email, subject, message } = req.body;
     const ticket = new MessageSupport({
       user: req.body.user,
       firstName: req.body.firstName,
@@ -685,6 +734,34 @@ router.post('/support', async (req, res) => {
         content: req.body.message
       }]
     });
+
+    // Log activity for realtor
+        await Activity.create({
+          userId: user,
+          userModel: 'client',
+          role: 'client',
+          activityType: 'support_message',
+          description: 'You sent a support message',
+          metadata: {
+            ticketId: ticket._id,
+            subject,
+            message
+          }
+        });
+    
+        // Log activity for admin
+        await Activity.create({
+          userModel: 'Admin',
+          role: 'admin',
+          activityType: 'support_message',
+          description: `${username} sent a support message`,
+          metadata: {
+            ticketId: ticket._id,
+            subject,
+            sender: username,
+            message
+          }
+        });
 
     await ticket.save();
     res.status(201).json(ticket);

@@ -24,6 +24,8 @@ const PendingTestimonials = require('../database/schema/PendingTestimonialsSchem
 
 const Testimonial = require("../database/schema/Testimonial")
 
+const Activity = require('../database/schema/acivity');
+
 
 // Email Transporter Configuration
 const transporter = nodemailer.createTransport({
@@ -94,7 +96,6 @@ router.get('/dashboard/:username', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 
 // Get profile data
 router.get("/profile/:username", async (req, res) => {
@@ -253,6 +254,16 @@ router.put("/change-password", async (req, res) => {
         `
       };
   
+      // After fund upload, emit notification
+    const notification = {
+      type: 'payment',
+      title: 'New Payment Uploaded',
+      message: `${req.body.firstName} ${req.body.lastName} uploaded a payment of ${req.body.amount}`,
+      timestamp: new Date().toISOString()
+    };
+    
+    io.emit('notification', notification);
+
       await transporter.sendMail(userMailOptions);
   
       await fund.save();
@@ -392,6 +403,18 @@ router.post('/withdrawal', async (req, res) => {
         </div>
       `,
     };
+
+    // After creating withdrawal request, emit notification
+    const notification = {
+      type: 'withdrawal',
+      title: 'New Withdrawal Request',
+      message: `${req.body.firstName} ${req.body.lastName} requested a withdrawal of ${req.body.amount}`,
+      timestamp: new Date().toISOString()
+    };
+    
+    io.emit('notification', notification);
+
+
     await transporter.sendMail(userMailOptions);
 
     await withdrawal.save();
@@ -444,28 +467,73 @@ router.get('/withdrawal-requests', async (req, res) => {
 
 
 
-// Create new ticket
+// In your routes file (probably routes/realtor.js or similar)
 router.post('/support', async (req, res) => {
   try {
-      console.log(req.body)
+    const { io } = req.app.locals; // Get io from app.locals
+    const { user, firstName, lastName, username, phone, email, subject, message } = req.body;
+
+    // Create ticket
     const ticket = new MessageSupport({
-      user: req.body.user,
-      firstName: req.body.firstName,
-      lastName: req.body.lastName,
-      username: req.body.username,
-      phone: req.body.phone,
-      email: req.body.email,
-      subject: req.body.subject,
+      user,
+      firstName,
+      lastName,
+      username,
+      phone,
+      email,
+      subject,
       messages: [{
         sender: 'realtor',
-        content: req.body.message
+        content: message
       }]
     });
 
     await ticket.save();
+
+    // Log activity for realtor
+    await Activity.create({
+      userId: user,
+      userModel: 'Realtor',
+      role: 'realtor',
+      activityType: 'support_message',
+      description: 'You sent a support message',
+      metadata: {
+        ticketId: ticket._id,
+        subject,
+        message
+      }
+    });
+
+    // Log activity for admin
+    await Activity.create({
+      userModel: 'Admin',
+      role: 'admin',
+      activityType: 'support_message',
+      description: `${username} sent a support message`,
+      metadata: {
+        ticketId: ticket._id,
+        subject,
+        sender: username,
+        message
+      }
+    });
+
+    // Create notification payload
+    const notification = {
+      title: 'New Support Ticket',
+      message: `New ticket from ${firstName} ${lastName}: ${subject}`,
+      type: 'support',
+      ticketId: ticket._id,
+      sender: username,
+      timestamp: new Date()
+    };
+
+    // Send notification only to admins
+    io.to('admin_room').emit('admin_notification', notification);
+
     res.status(201).json(ticket);
   } catch (error) {
-    console.log('Error creating support ticket:', error);
+    console.error('Error creating support ticket:', error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -507,6 +575,20 @@ router.post('/support', async (req, res) => {
       });
       ticket.updatedAt = Date.now();
       await ticket.save();
+
+      // Emit notification for new message
+    const notification = {
+      title: 'New Support Message',
+      message: `New message in ticket: ${ticket.subject}`,
+      type: 'support_message',
+      ticketId: ticket._id,
+      sender: sender,
+      timestamp: new Date()
+    };
+    
+    req.app.get('io').emit('notification', notification);
+
+
       res.json(ticket);
     } catch (error) {
       console.log('Error fetching withdrawal requests:', error);
@@ -695,14 +777,28 @@ router.get('/referrals/:username', async (req, res) => {
 
 router.post('/testimonials/submit', async (req, res) => {
   try {
-    const { realtorId, realtorName, realtorEmail, propertypurchased, content } = req.body;
+    const { realtorId, realtorName, realtorEmail, title, content } = req.body;
     const newTestimonial = new PendingTestimonials({
       realtorId,
       realtorName,
       realtorEmail,
-      propertypurchased,
+      propertypurchased: title,
       content,
     });
+
+    console.log(req.body)
+
+    // After testimonial submission, emit notification
+    const notification = {
+      type: 'testimonial',
+      title: 'New Testimonial Submitted',
+      message: `${req.body.realtorName} submitted a new testimonial`,
+      timestamp: new Date().toISOString()
+    };
+    const io = req.app.get('io');
+    
+    io.emit('notification', notification);
+
     await newTestimonial.save();
     res.status(201).json({ message: 'Testimonial submitted successfully' });
   } catch (error) {
@@ -844,6 +940,25 @@ router.post('/auth/change-password', async (req, res) => {
     res.status(500).json({ message: 'Failed to change password', error });
   }
 });
+
+
+// Get activities for current user
+router.get('/my-activities', async (req, res) => {
+  try {
+    const activities = await Activity.find({
+      userId: req.user.id,
+      userModel: req.user.constructor.modelName
+    })
+    .sort({ createdAt: -1 })
+    .limit(50);
+
+    res.json(activities);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 
 
   
