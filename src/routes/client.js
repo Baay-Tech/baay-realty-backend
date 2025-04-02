@@ -344,7 +344,7 @@ router.post('/signup', async (req, res) => {
         console.log(user, purchase)
 
         // Send confirmation email to the user
-        const portalLink = "https://portal.baayrealty.com"; // Replace with actual portal link
+        const portalLink = "https://baay-frontemd.onrender.com"; // Replace with actual portal link
 
 
         const userEmailSent = await sendEmail(
@@ -405,9 +405,7 @@ router.post('/signup', async (req, res) => {
             }
         });
 
-        // Save user and purchase records
-        await user.save();
-        await purchase.save();
+        
     } catch (socketError) {
         console.error('Failed to send notification:', socketError);
         // Continue with registration even if notification fails
@@ -430,6 +428,11 @@ router.post('/signup', async (req, res) => {
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
+
+
+        // Save user and purchase records
+        await user.save();
+        await purchase.save();
 
         // Return success response
         res.status(201).json({
