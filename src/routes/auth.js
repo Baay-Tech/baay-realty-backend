@@ -578,7 +578,6 @@ router.post("/admin/login", async (req, res) => {
       req,
       {
         loginMethod: 'username_password',
-        deviceType: getDeviceType(req.headers['user-agent']),
         adminType: admin.adminType
       }
     );
