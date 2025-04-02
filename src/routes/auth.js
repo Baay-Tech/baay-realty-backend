@@ -294,7 +294,68 @@ router.post('/realtor/register', async (req, res) => {
       to: newRealtor.email,
       from: '"Baay Realty" <sanieldan@zohomail.com>',
       subject: `🎉 Welcome to Baay Realty - Your Realtor Portal Access`,
-      html: `...` // your email template
+      html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+          
+      <!-- Header Section -->
+      <div style="background-color: #002657; color: white; text-align: center; padding: 20px;">
+        <h1 style="margin: 0;">Welcome to Baay Realty</h1>
+        <p style="margin: 5px 0;">Your journey as a realtor starts now! 🚀</p>
+      </div>
+
+      <!-- Body Content -->
+      <div style="padding: 20px;">
+        <p>Dear <strong>${firstName} ${lastName}</strong>,</p>
+        <p>We are thrilled to welcome you as a realtor at Baay Realty. Below are your account details:</p>
+
+        <!-- Realtor Details -->
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+          <h3 style="color: #002657;">🔹 Your Realtor Details</h3>
+          <ul style="list-style: none; padding: 0;">
+            <li><strong>Realtor ID:</strong> ${referrerIdNumber}</li>
+            <li><strong>Username:</strong> ${username}</li>
+            <li><strong>Email:</strong> ${email}</li>
+            <li><strong>Phone:</strong> ${phone}</li>
+          </ul>
+        </div>
+
+        <!-- Upline Information -->
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 6px;">
+          <h3 style="color: #002657;">📢 Your Upline ConsuRealtorltant</h3>
+          <ul style="list-style: none; padding: 0;">
+            <li><strong>Name:</strong> ${referringRealtor.firstName} ${referringRealtor.lastName}</li>
+            <li><strong>Phone:</strong> ${referringRealtor.phone}</li>
+            <li><strong>Email:</strong> ${referringRealtor.email}</li>
+          </ul>
+        </div>
+
+        <!-- Important Links -->
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${loginLink}" 
+            style="background: #E5B305; color: white; padding: 12px 20px; 
+                   text-decoration: none; border-radius: 5px; font-weight: bold;">
+            🎯 Access Your Realtor Portal
+          </a>
+        </div>
+
+        <p>Your referral link to invite others:</p>
+        <p style="background: #002657; color: white; padding: 10px; text-align: center; border-radius: 5px;">
+          <a href="${referralLink}" style="color: #E5B305; text-decoration: none;">
+            ${referralLink}
+          </a>
+        </p>
+
+        <p>If you have any questions, feel free to reach out to us:</p>
+        <p>📞 <strong>+234 800 555 REAL (7325)</strong></p>
+        <p>📧 <a href="clientrelations.baayprojects@gmail.com" style="color: #002657;">clientrelations.baayprojects@gmail.com</a></p>
+      </div>
+
+      <!-- Footer Section -->
+      <div style="background-color: #002657; color: white; text-align: center; padding: 15px;">
+        <p style="margin: 0;">&copy; ${new Date().getFullYear()} Baay Realty. All Rights Reserved.</p>
+      </div>
+    
+    </div>
+  ` 
     };
 
     await new Promise((resolve, reject) => {
@@ -335,8 +396,12 @@ router.post('/realtor/register', async (req, res) => {
     };
     
     // Get the io instance and emit notification
-    const io = req.app.get('io');
-    io.emit('notification', notification);
+    const { io, connectedUsers } = req.app.locals;
+    // Example: Send to all admins
+    io.to('admin_room').emit('notification', { message: 'Test' });
+    
+    // Example: Check connected users
+    console.log('Connected admins:', connectedUsers.admins.size);
 
 
     await referringRealtor.save({ session });
