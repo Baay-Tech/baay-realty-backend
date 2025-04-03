@@ -72,13 +72,14 @@ const transporter = nodemailer.createTransport({
   });
   
   // Function to send an email
-  const sendEmail = async (to, subject, text) => {
+  const sendEmail = async (to, subject, text, html) => {
     try {
       await transporter.sendMail({
         from: '"Baay Realty" <sanieldan@zohomail.com>',
         to,
         subject,
-        text
+        text,
+        html
       });
       console.log(`Email sent to ${to}`);
       return true;
@@ -199,7 +200,7 @@ router.put('/funds/:id', async (req, res) => {
   try {
     const { status, amount } = req.body;
     const { id } = req.params;
-    const io = req.app.get('io');
+    const io = req.app.locals.io;
     const connectedUsers = req.app.get('connectedUsers');
 
     console.log(req.body);
@@ -285,15 +286,6 @@ router.put('/funds/:id', async (req, res) => {
       `;
 
       try {
-
-        // Send notification to realtor
-      io.to(`realtor_${user}`).emit('notification', {
-        title: 'Funds Approved',
-        message: `Your fund request of ₦${amount} has been approved`,
-        type: 'fund_approved',
-        amount: amount,
-        timestamp: new Date()
-      });
         // Update the user's funding and balance
         const userDoc = await RealtorUser.findById(user);
         if (!userDoc) {
@@ -321,6 +313,26 @@ router.put('/funds/:id', async (req, res) => {
 
         // Save the updated user document
         await userDoc.save();
+
+        console.log(`Attempting to emit to realtor_${user}`);
+        console.log('Current Socket.IO state:', {
+          socketsCount: io.engine?.clientsCount,
+          rooms: io.sockets?.adapter?.rooms ? [...io.sockets.adapter.rooms.keys()] : 'N/A'
+        });
+
+        // When emitting
+        try {
+          io.to(`realtor_${user}`).emit('notification', {
+            title: 'Funds Approved',
+            message: `Your fund request of ₦${amount} has been approved`,
+            type: 'fund_approved',
+            amount: amount,
+            timestamp: new Date()
+          });
+          console.log('Notification emitted successfully');
+        } catch (emitError) {
+          console.error('Error emitting notification:', emitError);
+        }
 
       } catch (error) {
         console.log('Error updating user balance:', error);
@@ -358,6 +370,7 @@ router.put('/funds/:id', async (req, res) => {
       `;
     } else {
       // Send rejection notification to realtor
+      console.log(`Attempting to emit to realtor_${user}`);
       io.to(`realtor_${user}`).emit('notification', {
         title: 'Funds Rejected',
         message: `Your fund request of ₦${amount} was rejected`,
@@ -369,7 +382,7 @@ router.put('/funds/:id', async (req, res) => {
     }
 
     // Send email
-    const emailSent = await sendEmail(email, subject, htmlContent);
+    const emailSent = await sendEmail(email, subject, "Plain text version", htmlContent);
     if (!emailSent) {
       console.log('Failed to send email');
       return res.status(500).json({ message: "Failed to send email" });
@@ -497,7 +510,7 @@ router.put('/withdrawals/:id', async (req, res) => {
     try {
         const { status } = req.body;
         const withdrawal = await Realtorwithdrawalrequest.findById(req.params.id);
-        const io = req.app.get('io');
+        const io = req.app.locals.io;
 
         if (!withdrawal) return res.status(404).json({ message: 'Withdrawal request not found' });
 
@@ -563,14 +576,25 @@ router.put('/withdrawals/:id', async (req, res) => {
                 </div>
             `;
 
-             // Send approval notification to realtor
-      io.to(`realtor_${withdrawal.user}`).emit('notification', {
-        title: 'Withdrawal Approved',
-        message: `Your withdrawal request of ₦${withdrawal.amount} has been approved`,
-        type: 'withdrawal_approved',
-        amount: withdrawal.amount,
-        timestamp: new Date()
-      });
+            console.log(`Attempting to emit to realtor_${withdrawal.user}`);
+        console.log('Current Socket.IO state:', {
+          socketsCount: io.engine?.clientsCount,
+          rooms: io.sockets?.adapter?.rooms ? [...io.sockets.adapter.rooms.keys()] : 'N/A'
+        });
+
+        try {
+          io.to(`realtor_${withdrawal.user}`).emit('notification', {
+            title: 'Withdrawal Approved',
+            message: `Your withdrawal request of ₦${withdrawal.amount} has been approved`,
+            type: 'withdrawal_approved',
+            amount: withdrawal.amount,
+            timestamp: new Date()
+          });
+          console.log('Notification emitted successfully');
+        } catch (emitError) {
+          console.error('Error emitting notification:', emitError);
+        }
+
         } else if (status === "rejected") {
             subject = "⚠️ Withdrawal Request Rejected!";
             htmlContent = `
@@ -601,14 +625,25 @@ router.put('/withdrawals/:id', async (req, res) => {
                     </div>
                 </div>
             `;
-            // Send rejection notification to realtor
-      io.to(`realtor_${withdrawal.user}`).emit('notification', {
-        title: 'Withdrawal Rejected',
-        message: `Your withdrawal request of ₦${withdrawal.amount} was rejected`,
-        type: 'withdrawal_rejected',
-        amount: withdrawal.amount,
-        timestamp: new Date()
-      });
+            console.log(`Attempting to emit to realtor_${withdrawal.user}`);
+        console.log('Current Socket.IO state:', {
+          socketsCount: io.engine?.clientsCount,
+          rooms: io.sockets?.adapter?.rooms ? [...io.sockets.adapter.rooms.keys()] : 'N/A'
+        });
+
+        try {
+          io.to(`realtor_${withdrawal.user}`).emit('notification', {
+            title: 'Withdrawal Rejected',
+            message: `Your withdrawal request of ₦${withdrawal.amount} was rejecte`,
+            type: 'withdrawal_rejected',
+            amount: withdrawal.amount,
+            timestamp: new Date()
+          });
+          console.log('Notification emitted successfully');
+        } catch (emitError) {
+          console.error('Error emitting notification:', emitError);
+        }
+
         } else {
             return res.status(400).json({ message: "Invalid status" });
         }
@@ -989,7 +1024,7 @@ router.get("/ticket", async (req, res) => {
   router.post("/ticket/:id/reply", async (req, res) => {
     try {
       const { content } = req.body;
-      const { io } = req.app.locals;
+      const io = req.app.locals.io;
       const ticket = await Messages.findById(req.params.id);
       
       if (!ticket) {
@@ -1006,17 +1041,6 @@ router.get("/ticket", async (req, res) => {
       // Determine user type (default to 'client' if not specified)
       const userType = ticket.userType || 'client';
       const roomName = `${userType}_${ticket.user}`;
-      
-      console.log(`Preparing to notify ${roomName} about ticket reply`);
-  
-      // Create notification payload
-      const notification = {
-        title: 'New Reply to Your Ticket',
-        message: `Admin replied to your support ticket: ${ticket.subject}`,
-        type: 'support_reply',
-        ticketId: ticket._id,
-        timestamp: new Date()
-      };
   
       // Log activity
       await Activity.create({
@@ -1032,10 +1056,25 @@ router.get("/ticket", async (req, res) => {
         }
       });
   
-      // Send notification to specific room
-      console.log(`Emitting to room: ${roomName}`);
-      io.to(roomName).emit('notification', notification);
-      console.log('Notification emitted:', notification);
+
+      console.log(`Attempting to emit to realtor_${ticket.user}`);
+      console.log('Current Socket.IO state:', {
+        socketsCount: io.engine?.clientsCount,
+        rooms: io.sockets?.adapter?.rooms ? [...io.sockets.adapter.rooms.keys()] : 'N/A'
+      });
+
+      try {
+        io.to(`realtor_${ticket.user}`).emit('notification', {
+          title: 'New Reply to Your Ticket',
+          message: `Admin replied to your support ticket: ${ticket.subject}`,
+          type: 'support_reply',
+          ticketId: ticket._id,
+          timestamp: new Date()
+        });
+        console.log('Notification emitted successfully');
+      } catch (emitError) {
+        console.error('Error emitting notification:', emitError);
+      }
   
       res.json({ message: "Reply sent successfully", ticket });
     } catch (err) {
@@ -1354,15 +1393,22 @@ router.patch('/purchases/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const io = req.app.get('io'); // Get Socket.IO instance
+    const io = req.app.locals.io; // Get Socket.IO instance
+
+    console.log(id)
+
+      // Explicitly create ObjectId
+      const purchaseId = new mongoose.Types.ObjectId(id);
 
     // Find purchase by ID
-    const purchase = await Purchase.findById(id).session(session);
-    if (!purchase) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).json({ message: 'Purchase not found' });
-    }
+   const purchase = await Purchase.findOne({ _id: purchaseId }).session(session);
+   if (!purchase) {
+    console.log('Purchase not found with ID:', id);
+    console.log('Sample existing ID:', (await Purchase.findOne())._id);
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(404).json({ message: 'Purchase not found' });
+  }
 
     await logActivity(
       null,
@@ -1397,7 +1443,9 @@ router.patch('/purchases/:id/status', async (req, res) => {
       const property = await Property.findById(purchase.property).session(session);
       if (!property) {
         await session.abortTransaction();
+        console.log("property not found")
         session.endSession();
+       
         return res.status(404).json({ message: 'Property not found' });
       }
 
@@ -1405,6 +1453,7 @@ router.patch('/purchases/:id/status', async (req, res) => {
       if (!realtor) {
         await session.abortTransaction();
         session.endSession();
+        console.log("realtor not found")
         return res.status(404).json({ message: 'Realtor not found' });
       }
 
@@ -1417,7 +1466,9 @@ router.patch('/purchases/:id/status', async (req, res) => {
 
       if (isNaN(purchaseAmount) || isNaN(commissionRate)) {
         await session.abortTransaction();
+        console.log("Invalid purchase amount or commission rate")
         session.endSession();
+
         return res.status(400).json({ message: 'Invalid purchase amount or commission rate' });
       }
 
@@ -1477,6 +1528,7 @@ router.patch('/purchases/:id/status', async (req, res) => {
         if (uplineRealtor) {
           if (isNaN(indirectCommissionRate)) {
             await session.abortTransaction();
+            console.log("Purchase not found")
             session.endSession();
             return res.status(400).json({ message: 'Invalid indirect commission rate' });
           }
@@ -1537,6 +1589,12 @@ router.patch('/purchases/:id/status', async (req, res) => {
       await session.commitTransaction();
       session.endSession();
 
+      console.log(`Attempting to emit to realtor_${purchase.client}`);
+      console.log('Current Socket.IO state:', {
+        socketsCount: io.engine?.clientsCount,
+        rooms: io.sockets?.adapter?.rooms ? [...io.sockets.adapter.rooms.keys()] : 'N/A'
+      });
+
       try {
         // Notification to Client
         io.to(`client_${purchase.client}`).emit('notification', {
@@ -1546,6 +1604,8 @@ router.patch('/purchases/:id/status', async (req, res) => {
           purchaseId: purchase._id,
           timestamp: new Date()
         });
+
+        console.log('Notification emitted successfully to client');
 
         // Notification to Direct Commission Realtor
         io.to(`realtor_${realtor._id}`).emit('notification', {
@@ -1557,6 +1617,7 @@ router.patch('/purchases/:id/status', async (req, res) => {
           timestamp: new Date()
         });
 
+        console.log('Notification emitted successfully to uline');
         // Notification to Indirect Commission Realtor (if exists)
         if (uplineRealtor) {
           io.to(`realtor_${uplineRealtor._id}`).emit('notification', {
@@ -1568,6 +1629,8 @@ router.patch('/purchases/:id/status', async (req, res) => {
             timestamp: new Date()
           });
         }
+
+        console.log('Notification emitted successfully indirect');
       } catch (socketError) {
         console.error('Failed to send notifications:', socketError);
         // Notifications failed but transaction was successful
@@ -1625,7 +1688,7 @@ router.patch('/purchases/:id/status', async (req, res) => {
     // Abort the transaction on error
     await session.abortTransaction();
     session.endSession();
-    console.error('Error updating purchase status:', error);
+    console.log('Error updating purchase status:', error);
     res.status(400).json({ message: error.message, stack: error.stack });
   }
 });
@@ -1931,7 +1994,7 @@ router.get('/testimonial/accepted', async (req, res) => {
 router.post('/testimonial/accept', async (req, res) => {
   try {
     const { testimonialId } = req.body;
-    const io = req.app.get('io');
+    const io = req.app.locals.io;
     
     // Find the pending testimonial
     const pendingTestimonial = await PendingTestimonials.findById(testimonialId);
@@ -1984,13 +2047,24 @@ router.post('/testimonial/accept', async (req, res) => {
     
     // Delete the pending testimonial
     await PendingTestimonials.findByIdAndDelete(testimonialId);
+    
+    console.log(`Attempting to emit to realtor_${pendingTestimonial.realtorId}`);
+        console.log('Current Socket.IO state:', {
+          socketsCount: io.engine?.clientsCount,
+          rooms: io.sockets?.adapter?.rooms ? [...io.sockets.adapter.rooms.keys()] : 'N/A'
+        });
 
-    io.to(`realtor_${pendingTestimonial.realtorId}`).emit('notification', {
-      title: 'Testimonial Approved',
-      message: 'Your testimonial has been approved and published',
-      type: 'testimonial_approved',
-      timestamp: new Date()
-    });
+    try {
+      io.to(`realtor_${pendingTestimonial.realtorId}`).emit('notification', {
+        title: 'Testimonial Approved',
+        message: `Testimonial Approved`,
+        type: 'testimonial_approved',
+        timestamp: new Date()
+      });
+      console.log('Notification emitted successfully');
+    } catch (emitError) {
+      console.error('Error emitting notification:', emitError);
+    }
     
     res.json({ message: 'Testimonial accepted successfully' });
   } catch (error) {

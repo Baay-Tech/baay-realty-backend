@@ -201,13 +201,18 @@ router.put("/change-password", async (req, res) => {
 
   router.post("/upload-fund", async (req, res) => { 
     try {
+      // Validate required fields
+      if (!req.body.userid || !req.body.email || !req.body.firstName || !req.body.lastName || !req.body.amount) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+  
       const fund = new Fund({
         user: req.body.userid,
         username: req.body.username,
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         amount: req.body.amount,
-        paymentDate: req.body.paymentDate,
+        paymentDate: req.body.paymentDate || new Date(),
         proofImage: req.body.proofImage,
         email: req.body.email,
         phone: req.body.phone
@@ -215,7 +220,7 @@ router.put("/change-password", async (req, res) => {
   
       // Admin email template
       const adminMailOptions = {
-        to: ['Favoursunday600@gmail.com', 'clientrelations.baayprojects@gmail.com'],
+        to: ['favoursunday600@gmail.com', 'clientrelations.baayprojects@gmail.com'],
         from: '"Baay Realty" <sanieldan@zohomail.com>',
         subject: `📩 New Payment Uploaded by ${req.body.firstName} ${req.body.lastName}`,
         html: `
@@ -254,18 +259,23 @@ router.put("/change-password", async (req, res) => {
         `
       };
   
-      // After fund upload, emit notification
-    const notification = {
-      type: 'payment',
-      title: 'New Payment Uploaded',
-      message: `${req.body.firstName} ${req.body.lastName} uploaded a payment of ${req.body.amount}`,
-      timestamp: new Date().toISOString()
-    };
-    
-    io.emit('notification', notification);
-
-      await transporter.sendMail(userMailOptions);
+      const notification = {
+        type: 'payment',
+        title: 'New Payment Uploaded',
+        message: `${req.body.firstName} ${req.body.lastName} uploaded a payment of ${req.body.amount}`,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Get io instance and emit to admin room
+      const io = req.app.locals.io;
+      
+      // Debug log before emitting
+      console.log('Emitting notification to admin_room:', notification);
+      console.log('Current admin connections:', req.app.locals.connectedUsers.admins);
+      
+      io.to('admin_room').emit('admin_notification', notification);
   
+      await transporter.sendMail(userMailOptions);
       await fund.save();
   
       res.status(201).json(fund);
@@ -411,8 +421,14 @@ router.post('/withdrawal', async (req, res) => {
       message: `${req.body.firstName} ${req.body.lastName} requested a withdrawal of ${req.body.amount}`,
       timestamp: new Date().toISOString()
     };
+
+    const io = req.app.locals.io;
     
-    io.emit('notification', notification);
+    // Debug log before emitting
+    console.log('Emitting notification to admin_room:', notification);
+    console.log('Current admin connections:', req.app.locals.connectedUsers.admins);
+    
+    io.to('admin_room').emit('admin_notification', notification);
 
 
     await transporter.sendMail(userMailOptions);
@@ -470,7 +486,7 @@ router.get('/withdrawal-requests', async (req, res) => {
 // In your routes file (probably routes/realtor.js or similar)
 router.post('/support', async (req, res) => {
   try {
-    const { io } = req.app.locals; // Get io from app.locals
+    const io = req.app.locals.io;// Get io from app.locals
     const { user, firstName, lastName, username, phone, email, subject, message } = req.body;
 
     // Create ticket
@@ -520,9 +536,9 @@ router.post('/support', async (req, res) => {
 
     // Create notification payload
     const notification = {
-      title: 'New Support Ticket',
+      type: 'Support',
+      title: 'New Withdrawal Request',
       message: `New ticket from ${firstName} ${lastName}: ${subject}`,
-      type: 'support',
       ticketId: ticket._id,
       sender: username,
       timestamp: new Date()
@@ -777,12 +793,12 @@ router.get('/referrals/:username', async (req, res) => {
 
 router.post('/testimonials/submit', async (req, res) => {
   try {
-    const { realtorId, realtorName, realtorEmail, title, content } = req.body;
+    const { realtorId, realtorName, realtorEmail, title, content, propertypurchased } = req.body;
     const newTestimonial = new PendingTestimonials({
       realtorId,
       realtorName,
       realtorEmail,
-      propertypurchased: title,
+      propertypurchased: propertypurchased,
       content,
     });
 
@@ -795,9 +811,13 @@ router.post('/testimonials/submit', async (req, res) => {
       message: `${req.body.realtorName} submitted a new testimonial`,
       timestamp: new Date().toISOString()
     };
-    const io = req.app.get('io');
+    const io = req.app.locals.io;
     
-    io.emit('notification', notification);
+    // Debug log before emitting
+    console.log('Emitting notification to admin_room:', notification);
+    console.log('Current admin connections:', req.app.locals.connectedUsers.admins);
+    
+    io.to('admin_room').emit('admin_notification', notification);
 
     await newTestimonial.save();
     res.status(201).json({ message: 'Testimonial submitted successfully' });

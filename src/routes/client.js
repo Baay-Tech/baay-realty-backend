@@ -391,19 +391,22 @@ router.post('/signup', async (req, res) => {
       });
 
       try {
-        const io = req.app.get('io');
-        io.to('admin_room').emit('notification', {
-            title: 'New Client Registration',
-            message: `${firstName} ${lastName} has registered as a client`,
-            type: 'registration',
-            userId: user._id,
-            timestamp: new Date(),
-            metadata: {
-                email: email,
-                phone: phone,
-                property: propertyName
-            }
-        });
+        const notification = {
+          type: 'registration',
+          title: 'New Client Registration & New Purchases', 
+          message: `${firstName} ${lastName} has registered as a client`,
+          timestamp: new Date().toISOString()
+        };
+
+        const io = req.app.locals.io;
+
+
+        // Debug log before emitting
+      console.log('Emitting notification to admin_room:', notification);
+      console.log('Current admin connections:', req.app.locals.connectedUsers.admins);
+      
+      io.to('admin_room').emit('admin_notification', notification);
+
 
         
     } catch (socketError) {
@@ -567,6 +570,8 @@ try {
     const newPurchase = new Purchase(req.body);
     await newPurchase.save();
 
+    const io = req.app.locals.io;
+
     // Email templates
     const userEmailTemplate = (firstName, propertyName, portalLink) => `
     <!DOCTYPE html>
@@ -649,10 +654,16 @@ try {
       type: 'purchase',
       title: 'New Property Purchase',
       message: `${req.body.ClientfirstName} ${req.body.ClientlastName} purchased ${req.body.propertyName}`,
-      timestamp: new Date().toISOString()
+      timestamp: new Date()
     };
+
+     // Debug log before emitting
+     console.log('Emitting notification to admin_room:', notification);
+     console.log('Current admin connections:', req.app.locals.connectedUsers.admins);
     
-    io.emit('notification', notification);
+   // Send notification only to admins
+   io.to('admin_room').emit('admin_notification', notification);
+
     // Send email to admin
     const adminEmailSent = await sendEmail(
     ["Favoursunday600@gmail.com", "clientrelations.baaypoorojects@gmail.com"],

@@ -396,13 +396,9 @@ router.post('/realtor/register', async (req, res) => {
     };
     
     // Get the io instance and emit notification
-    const { io, connectedUsers } = req.app.locals;
+    const io = req.app.locals.io;
     // Example: Send to all admins
-    io.to('admin_room').emit('notification', { message: 'Test' });
-    
-    // Example: Check connected users
-    console.log('Connected admins:', connectedUsers.admins.size);
-
+    io.to('admin_room').emit('admin_notification', notification);
 
     await referringRealtor.save({ session });
     await newRealtor.save({ session });

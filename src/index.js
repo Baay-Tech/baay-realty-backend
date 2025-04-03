@@ -29,7 +29,7 @@ const allowedOrigins = [
 const io = socketIo(server, {
   cors: {
     origin: allowedOrigins,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["PATCH","GET", "POST", "PUT", "DELETE", "OPTIONS", "patch"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "my-custom-header"],
     transports: ['websocket', 'polling']
@@ -57,36 +57,70 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('authenticate', ({ userId, userType }) => {
-    try {
-      if (!userId || !userType) {
-        throw new Error('Missing userId or userType');
-      }
-
-      switch(userType.toLowerCase()) {
-        case 'admin':
-          connectedUsers.admins.add(socket.id);
-          socket.join('admin_room');
-          console.log(`Admin authenticated: ${socket.id}`);
-          break;
-        case 'client':
-          connectedUsers.clients.set(userId, socket.id);
-          socket.join(`user_${userId}`);
-          console.log(`Client ${userId} authenticated: ${socket.id}`);
-          break;
-        case 'realtor':
-          connectedUsers.realtors.set(userId, socket.id);
-          socket.join(`realtor_${userId}`);
-          console.log(`Realtor ${userId} authenticated: ${socket.id}`);
-          break;
-        default:
-          throw new Error('Invalid userType');
-      }
-    } catch (error) {
-      console.error('Authentication error:', error.message);
-      socket.emit('authentication_error', { message: error.message });
+// In your server code (where you handle socket connections)
+socket.on('authenticate', async ({ userId, userType, token }) => {
+  try {
+    console.log('Authentication attempt received:', { userId, userType });
+    
+    if (!userType) throw new Error('Missing userType');
+    
+    // For non-admin users, require both userId and token
+    if (userType.toLowerCase() !== 'admin') {
+      if (!userId) throw new Error('Missing userId for client/realtor authentication');
+      if (!token) throw new Error('Authentication token required');
+      
+      // Verify token matches user (pseudo-code)
+      // const decoded = verifyToken(token);
+      // if (decoded.userId !== userId) throw new Error('Invalid token for user');
     }
-  });
+
+    switch(userType.toLowerCase()) {
+      case 'admin':
+        connectedUsers.admins.add(socket.id);
+        await socket.join('admin_room');
+        console.log(`Admin ${socket.id} joined admin_room`);
+        socket.emit('authentication_success', { 
+          message: 'Admin authenticated successfully',
+          userType: 'admin',
+          rooms: ['admin_room']
+        });
+        break;
+        
+      case 'client':
+      case 'realtor':
+        const roomName = `${userType.toLowerCase()}_${userId}`;
+        
+        // Store connection
+        const userMap = userType.toLowerCase() === 'client' 
+          ? connectedUsers.clients 
+          : connectedUsers.realtors;
+        userMap.set(userId, socket.id);
+        
+        // Join room
+        await socket.join(roomName);
+        console.log(`${userType} ${userId} joined ${roomName}`);
+        
+        socket.emit('authentication_success', {
+          message: `${userType} authenticated successfully`,
+          userType: userType.toLowerCase(),
+          room: roomName,
+          rooms: [roomName]
+        });
+        break;
+        
+      default:
+        throw new Error('Invalid userType');
+    }
+  } catch (error) {
+    console.error('Authentication error:', error.message);
+    socket.emit('authentication_error', { 
+      message: error.message,
+      requiresAuth: error.message.includes('token'),
+      requiresUserId: error.message.includes('userId')
+    });
+    socket.disconnect();
+  }
+});
 
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
@@ -129,7 +163,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors({ 
   origin: allowedOrigins,
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
@@ -138,6 +172,16 @@ app.locals = {
   io,
   connectedUsers
 };
+
+// app.use((req, res, next) => {
+//   console.log(`${req.method} ${req.path}`, {
+//     params: req.params,
+//     query: req.query,
+//     body: req.body,
+//     headers: req.headers
+//   });
+//   next();
+// });
 
 // Routes
 app.use('/auth', auth);
