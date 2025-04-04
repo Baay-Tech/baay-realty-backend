@@ -39,6 +39,15 @@ const FundSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  currency: {
+    type: String,
+    required: true,
+    enum: ["NGN", "USD", "EUR", "GBP", "CAD"]
+  },
+  currencySymbol: {
+    type: String,
+    required: true
+  },
   status: {
     type: String,
     enum: ["pending", "approved", "rejected"],

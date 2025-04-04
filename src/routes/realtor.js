@@ -202,7 +202,7 @@ router.put("/change-password", async (req, res) => {
   router.post("/upload-fund", async (req, res) => { 
     try {
       // Validate required fields
-      if (!req.body.userid || !req.body.email || !req.body.firstName || !req.body.lastName || !req.body.amount) {
+      if (!req.body.userid || !req.body.email || !req.body.firstName || !req.body.lastName || !req.body.amount || !req.body.currency) {
         return res.status(400).json({ message: "Missing required fields" });
       }
   
@@ -212,6 +212,8 @@ router.put("/change-password", async (req, res) => {
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         amount: req.body.amount,
+        currency: req.body.currency,
+        currencySymbol: req.body.currencySymbol,
         paymentDate: req.body.paymentDate || new Date(),
         proofImage: req.body.proofImage,
         email: req.body.email,
@@ -233,6 +235,7 @@ router.put("/change-password", async (req, res) => {
               <tr><td><strong>Email:</strong></td><td>${req.body.email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${req.body.phone}</td></tr>
               <tr><td><strong>Amount:</strong></td><td>${req.body.amount}</td></tr>
+              <tr><td><strong>Amount:</strong></td><td>${req.body.currencySymbol}${req.body.amount} (${req.body.currency})</td></tr>
             </table>
             <p style="margin-top: 20px; font-size: 14px;">Baay Realty | Admin Team</p>
           </div>
@@ -262,7 +265,7 @@ router.put("/change-password", async (req, res) => {
       const notification = {
         type: 'payment',
         title: 'New Payment Uploaded',
-        message: `${req.body.firstName} ${req.body.lastName} uploaded a payment of ${req.body.amount}`,
+        message: `${req.body.firstName} ${req.body.lastName} uploaded a payment of ${req.body.currency} ${req.body.amount} `,
         timestamp: new Date().toISOString()
       };
       
@@ -798,7 +801,7 @@ router.post('/testimonials/submit', async (req, res) => {
       realtorId,
       realtorName,
       realtorEmail,
-      propertypurchased: propertypurchased,
+      propertypurchased: title,
       content,
     });
 
