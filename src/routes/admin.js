@@ -1307,24 +1307,93 @@ const clientEmailTemplate = (firstName, propertyName) => `
 <html>
 <head>
   <style>
-    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
-    .container { max-width: 600px; background: #fff; margin: 20px auto; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
-    .header { background: #002657; color: #fff; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; }
-    .content { padding: 20px; line-height: 1.6; }
-    .footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }
+    body { 
+      font-family: 'Arial', sans-serif; 
+      background-color: #f8f9fa; 
+      margin: 0; 
+      padding: 0; 
+      color: #333;
+    }
+    .container { 
+      max-width: 600px; 
+      background: #fff; 
+      margin: 20px auto; 
+      border-radius: 8px; 
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .header { 
+      background: #002657; 
+      color: #fff; 
+      padding: 25px; 
+      text-align: center;
+    }
+    .logo { 
+      font-size: 24px; 
+      font-weight: bold; 
+      margin-bottom: 10px;
+      color: #E5B305;
+    }
+    .content { 
+      padding: 25px; 
+      line-height: 1.6;
+    }
+    .footer { 
+      text-align: center; 
+      font-size: 12px; 
+      color: #777; 
+      padding: 15px;
+      background: #f8f9fa;
+      border-top: 1px solid #eee;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 24px;
+      background-color: #E5B305;
+      color: #002657;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+      margin: 15px 0;
+    }
+    .highlight {
+      color: #002657;
+      font-weight: bold;
+    }
+    .divider {
+      border-top: 1px solid #eee;
+      margin: 20px 0;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header">Payment Proof Confirmed</div>
+    <div class="header">
+      <div class="logo">Baay Realty</div>
+      <div>Payment Proof Confirmed</div>
+    </div>
     <div class="content">
       <p>Dear <strong>${firstName}</strong>,</p>
-      <p>Your payment proof for <strong>Property: ${propertyName}</strong> has been confirmed.</p>
-      <p>Please check your dashboard for more details.</p>
+      
+      <p>We're pleased to inform you that your payment proof for <span class="highlight">${propertyName}</span> has been successfully confirmed.</p>
+      
+      <div class="divider"></div>
+      
+      <p>You can now access all property details and documents through your dashboard.</p>
+      
+      <center>
+        <a href="https://baay-realty.com/dashboard" class="button">Go to Dashboard</a>
+      </center>
+      
+      <p>Should you have any questions, please don't hesitate to contact our support team.</p>
+      
       <p>Best regards,</p>
       <p><strong>Baay Realty Team</strong></p>
     </div>
-    <div class="footer">Baay Realty &copy; 2024. All Rights Reserved.</div>
+    <div class="footer">
+      Baay Realty &copy; ${new Date().getFullYear()}. All Rights Reserved.<br>
+      <small>This is an automated message, please do not reply directly.</small>
+    </div>
   </div>
 </body>
 </html>
@@ -1335,23 +1404,115 @@ const directCommissionEmailTemplate = (firstName, propertyName, propertyPrice, c
 <html>
 <head>
   <style>
-    /* ... (keep existing styles the same) ... */
+    body { 
+      font-family: 'Arial', sans-serif; 
+      background-color: #f8f9fa; 
+      margin: 0; 
+      padding: 0; 
+      color: #333;
+    }
+    .container { 
+      max-width: 600px; 
+      background: #fff; 
+      margin: 20px auto; 
+      border-radius: 8px; 
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .header { 
+      background: #002657; 
+      color: #fff; 
+      padding: 25px; 
+      text-align: center;
+    }
+    .logo { 
+      font-size: 24px; 
+      font-weight: bold; 
+      margin-bottom: 10px;
+      color: #E5B305;
+    }
+    .content { 
+      padding: 25px; 
+      line-height: 1.6;
+    }
+    .footer { 
+      text-align: center; 
+      font-size: 12px; 
+      color: #777; 
+      padding: 15px;
+      background: #f8f9fa;
+      border-top: 1px solid #eee;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 24px;
+      background-color: #E5B305;
+      color: #002657;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+      margin: 15px 0;
+    }
+    .highlight {
+      color: #002657;
+      font-weight: bold;
+    }
+    .commission-badge {
+      background-color: #E5B305;
+      color: #002657;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-weight: bold;
+      display: inline-block;
+      margin: 10px 0;
+    }
+    .divider {
+      border-top: 1px solid #eee;
+      margin: 20px 0;
+    }
+    .details-box {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 15px 0;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header">Direct Commission Received</div> <!-- Changed header -->
+    <div class="header">
+      <div class="logo">Baay Realty</div>
+      <div>Direct Commission Earned</div>
+    </div>
     <div class="content">
       <p>Dear <strong>${firstName}</strong>,</p>
-      <p>You have received a <strong>DIRECT COMMISSION</strong> for <strong>Property: ${propertyName}</strong> 
-      (Price: ${propertyPrice}) purchased by <strong>${clientFullName}</strong> 
-      (Email: ${clientEmail}, Phone: ${clientPhone}).</p> <!-- Explicit direct mention -->
-      <p>Your direct commission received is <strong>${commissionAmount}</strong>.</p>
-      <p>Please check your dashboard for more details.</p>
+      
+      <div class="commission-badge">DIRECT COMMISSION: ₦${commissionAmount.toLocaleString()}</div>
+      
+      <div class="details-box">
+        <p><span class="highlight">Property:</span> ${propertyName}</p>
+        <p><span class="highlight">Price:</span> ₦${propertyPrice.toLocaleString()}</p>
+        <p><span class="highlight">Client:</span> ${clientFullName}</p>
+        <p><span class="highlight">Contact:</span> ${clientEmail} | ${clientPhone}</p>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <p>This commission has been credited to your account and will be processed according to our payment schedule.</p>
+      
+      <center>
+        <a href="https://baay-realty.com/realtor-dashboard" class="button">View Commission Details</a>
+      </center>
+      
+      <p>For any inquiries regarding your commission, please contact our finance department.</p>
+      
       <p>Best regards,</p>
       <p><strong>Baay Realty Team</strong></p>
     </div>
-    <div class="footer">Baay Realty &copy; 2024. All Rights Reserved.</div>
+    <div class="footer">
+      Baay Realty &copy; ${new Date().getFullYear()}. All Rights Reserved.<br>
+      <small>This is an automated message, please do not reply directly.</small>
+    </div>
   </div>
 </body>
 </html>
@@ -1362,24 +1523,121 @@ const indirectCommissionEmailTemplate = (firstName, propertyName, propertyPrice,
 <html>
 <head>
   <style>
-    /* ... (keep existing styles the same) ... */
+    body { 
+      font-family: 'Arial', sans-serif; 
+      background-color: #f8f9fa; 
+      margin: 0; 
+      padding: 0; 
+      color: #333;
+    }
+    .container { 
+      max-width: 600px; 
+      background: #fff; 
+      margin: 20px auto; 
+      border-radius: 8px; 
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .header { 
+      background: #002657; 
+      color: #fff; 
+      padding: 25px; 
+      text-align: center;
+    }
+    .logo { 
+      font-size: 24px; 
+      font-weight: bold; 
+      margin-bottom: 10px;
+      color: #E5B305;
+    }
+    .content { 
+      padding: 25px; 
+      line-height: 1.6;
+    }
+    .footer { 
+      text-align: center; 
+      font-size: 12px; 
+      color: #777; 
+      padding: 15px;
+      background: #f8f9fa;
+      border-top: 1px solid #eee;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 24px;
+      background-color: #E5B305;
+      color: #002657;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+      margin: 15px 0;
+    }
+    .highlight {
+      color: #002657;
+      font-weight: bold;
+    }
+    .commission-badge {
+      background-color: #E5B305;
+      color: #002657;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-weight: bold;
+      display: inline-block;
+      margin: 10px 0;
+    }
+    .divider {
+      border-top: 1px solid #eee;
+      margin: 20px 0;
+    }
+    .details-box {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 15px 0;
+    }
+    .note {
+      font-style: italic;
+      color: #666;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header">Indirect Commission Received</div> <!-- Changed header -->
+    <div class="header">
+      <div class="logo">Baay Realty</div>
+      <div>Indirect Commission Earned</div>
+    </div>
     <div class="content">
       <p>Dear <strong>${firstName}</strong>,</p>
-      <p>You have received an <strong>INDIRECT COMMISSION</strong> for <strong>Property: ${propertyName}</strong> 
-      (Price: ${propertyPrice}) purchased by <strong>${clientFullName}</strong> 
-      (Email: ${clientEmail}, Phone: ${clientPhone}).</p> <!-- Explicit indirect mention -->
-      <p>Your indirect commission received is <strong>${commissionAmount}</strong>.</p>
-      <p>This commission is earned through your downline's sale.</p> <!-- Additional context -->
-      <p>Please check your dashboard for more details.</p>
+      
+      <div class="commission-badge">INDIRECT COMMISSION: ₦${commissionAmount.toLocaleString()}</div>
+      
+      <div class="details-box">
+        <p><span class="highlight">Property:</span> ${propertyName}</p>
+        <p><span class="highlight">Price:</span> ₦${propertyPrice.toLocaleString()}</p>
+        <p><span class="highlight">Client:</span> ${clientFullName}</p>
+        <p><span class="highlight">Contact:</span> ${clientEmail} | ${clientPhone}</p>
+      </div>
+      
+      <p class="note">This commission was earned through your downline's successful sale.</p>
+      
+      <div class="divider"></div>
+      
+      <p>The commission has been credited to your account and will be processed according to our payment schedule.</p>
+      
+      <center>
+        <a href="https://baay-realty.com/realtor-dashboard" class="button">View Commission Details</a>
+      </center>
+      
+      <p>For any inquiries regarding your commission, please contact our finance department.</p>
+      
       <p>Best regards,</p>
       <p><strong>Baay Realty Team</strong></p>
     </div>
-    <div class="footer">Baay Realty &copy; 2024. All Rights Reserved.</div>
+    <div class="footer">
+      Baay Realty &copy; ${new Date().getFullYear()}. All Rights Reserved.<br>
+      <small>This is an automated message, please do not reply directly.</small>
+    </div>
   </div>
 </body>
 </html>
