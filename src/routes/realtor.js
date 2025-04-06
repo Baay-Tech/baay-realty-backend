@@ -796,12 +796,12 @@ router.get('/referrals/:username', async (req, res) => {
 
 router.post('/testimonials/submit', async (req, res) => {
   try {
-    const { realtorId, realtorName, realtorEmail, title, content, propertypurchased } = req.body;
+    const { realtorId, realtorName, realtorEmail, propertypurchased, content } = req.body;
     const newTestimonial = new PendingTestimonials({
       realtorId,
       realtorName,
       realtorEmail,
-      propertypurchased: title,
+      propertypurchased: propertypurchased,
       content,
     });
 

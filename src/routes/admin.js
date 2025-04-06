@@ -353,7 +353,7 @@ router.put('/funds/:id', async (req, res) => {
               We were unable to verify it. Please contact our support team so we can assist you.
             </p>
             <div style="text-align: center; margin: 20px 0;">
-              <a href="mailto:clientrelations.baayprojects@gmail.com" 
+              <a href="mailto:clientrelations@baayprojects.com" 
                 style="background-color: #E5B305; color: white; padding: 10px 20px; 
                       text-decoration: none; border-radius: 5px; font-size: 16px;">
                 Contact Support
@@ -364,7 +364,7 @@ router.put('/funds/:id', async (req, res) => {
             </p>
           </div>
           <div style="background-color: #002657; padding: 10px; text-align: center; color: white;">
-            <p>📞 +2348071260398 | 📧 clientrelations.baayprojects@gmail.com</p>
+            <p>📞 +2348071260398 | 📧 clientrelations@baayprojects.com</p>
           </div>
         </div>
       `;
