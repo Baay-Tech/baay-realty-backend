@@ -586,6 +586,9 @@ router.post('/support', async (req, res) => {
     try {
       const ticket = await MessageSupport.findById(req.params.ticketId);
       if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+      const io = req.app.locals.io;// Get io from app.locals
+
+      console.log
   
       const sender = 'user'
       ticket.messages.push({
@@ -596,17 +599,18 @@ router.post('/support', async (req, res) => {
       await ticket.save();
 
       // Emit notification for new message
-    const notification = {
-      title: 'New Support Message',
-      message: `New message in ticket: ${ticket.subject}`,
-      type: 'support_message',
-      ticketId: ticket._id,
-      sender: sender,
-      timestamp: new Date()
-    };
-    
-    req.app.get('io').emit('notification', notification);
-
+      const notification = {
+        type: 'Support',
+        title: 'New Withdrawal Request',
+        message: `New ticket from ${ticket.firstName} ${ticket.lastName}: ${ticket.subject}`,
+        ticketId: ticket._id,
+        sender: ticket.username,
+        timestamp: new Date()
+      };
+  
+      // Send notification only to admins
+      io.to('admin_room').emit('admin_notification', notification);
+  
 
       res.json(ticket);
     } catch (error) {
@@ -838,14 +842,12 @@ router.get('/testimonials', async (req, res) => {
 
   try {
     const testimonials = await Testimonial.find()
-      .skip((page - 1) * limit)
-      .limit(limit);
+      .skip((page - 1))
+   
 
-    const total = await Testimonial.countDocuments();
-    const hasMore = page * limit < total;
-
-    res.status(200).json({ testimonials, hasMore });
+    res.status(200).json({ testimonials });
   } catch (error) {
+    console.log("error", error)
     res.status(500).json({ message: 'Error fetching testimonials', error });
   }
 });

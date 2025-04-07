@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const messageSchema = new mongoose.Schema({
   sender: {
     type: String,
-    enum: ['realtor', 'admin', "client"],
+    enum: ['realtor', 'admin', "client", 'user'],
     required: true
   },
   content: {
