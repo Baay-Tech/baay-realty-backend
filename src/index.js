@@ -14,7 +14,7 @@ const clients = require("./routes/client");
 const activity = require("./routes/activity");
 
 const app = express();
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT;
 
 // Create server and configure Socket.IO
 const server = http.createServer(app);
