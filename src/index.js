@@ -28,7 +28,7 @@ const allowedOrigins = [
   'https://baay-realty-frontend.onrender.com',
   'https://baay-realty-admin.onrender.com',
   'https://clients.baayrealty.com',
-  'https://associates.baayrealty.com/
+  'https://associates.baayrealty.com',
 ];
 
 // Enhanced Socket.IO configuration
