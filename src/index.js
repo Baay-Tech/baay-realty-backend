@@ -23,7 +23,15 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://baay-frontemd.onrender.com',
-  'https://baay-realty.onrender.com'
+  'https://baay-realty.onrender.com',
+  'https://baay-realty.onrender.com',
+  'https://www.baayrealty.com',
+  'https://baay-realty-frontend.onrender.com',
+  'https://baay-realty-admin.onrender.com',
+  'https://clients.baayrealty.com',
+  'https://associates.baayrealty.com',
+  'https://superadmin.baayrealty.com',
+  'https://admin.baayrealty.com'
 ];
 
 // Enhanced Socket.IO configuration
