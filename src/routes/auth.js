@@ -262,6 +262,23 @@ router.post('/realtor/register', async (req, res) => {
     const hashedPassword = await hashPassword(password);
     const referrerIdNumber = generateReferralId();
 
+    const [month, day] = dob.split('/');
+    const placeholderYear = 2000; // Using 2000 as placeholder year
+    const isoDateString = `${placeholderYear}-${month}-${day}`;
+
+    // Create Date object
+    const formattedDob = new Date(isoDateString);
+
+
+    // Validate date
+    if (isNaN(formattedDob.getTime())) {
+      await session.abortTransaction();
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid date format. Please use MM/DD (e.g. 06/15)' 
+      });
+    }
+
     const newRealtor = new Realtor({
       referrerIdNumber,
       username,
@@ -413,7 +430,7 @@ router.post('/realtor/register', async (req, res) => {
 
   } catch (error) {
     await session.abortTransaction();
-    console.error('Registration Error:', error);
+    console.log('Registration Error:', error);
     res.status(500).json({
       success: false,
       message: 'Registration failed. Please try again.'
