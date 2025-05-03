@@ -673,23 +673,31 @@ const sendPropertyEmail = async (to, property) => {
     // Prepare attachments array
     const attachments = [];
 
-     // Add featured image as attachment
-     if (property.featuredImage) {
+    // Add featured image as attachment with proper content type
+    if (property.featuredImage) {
       attachments.push({
         filename: 'featured-image.jpg',
         path: property.featuredImage,
-        cid: 'featuredImage' // same cid value as in the html img src
+        cid: 'featuredImage',
+        contentType: 'image/jpeg', // Add this line
+        contentDisposition: 'inline' // Add this line
       });
     }
 
-    // Add gallery images as attachments
-    property.galleryImages.forEach((img, index) => {
-      attachments.push({
-        filename: `gallery-image-${index}.jpg`,
-        path: img,
-        cid: `galleryImage${index}`
+    // Add gallery images as attachments with proper content type
+    if (property.galleryImages && Array.isArray(property.galleryImages)) {
+      property.galleryImages.forEach((img, index) => {
+        if (img) {
+          attachments.push({
+            filename: `gallery-image-${index}.jpg`,
+            path: img,
+            cid: `galleryImage${index}`,
+            contentType: 'image/jpeg', // Add this line
+            contentDisposition: 'inline' // Add this line
+          });
+        }
       });
-    });
+    }
 
     // Create HTML content for email with images and property details
     const htmlContent = `
@@ -718,7 +726,7 @@ const sendPropertyEmail = async (to, property) => {
           </div>
           <div class="property-details">
          
-            <img src="cid:featuredImage" alt="${property.propertyName}" class="property-image">
+            <img src="cid:featuredImage" alt="${property.propertyName || 'Property'}" class="property-image">
             
             <h2>${property.propertyName}</h2>
             <div class="price">₦${property.amount.toLocaleString()}</div>
@@ -756,10 +764,11 @@ const sendPropertyEmail = async (to, property) => {
             </div>
             
             <h3>Gallery Images</h3>
-             <div class="gallery">
-              ${property.galleryImages.map((img, index) => 
-                `<img src="cid:galleryImage${index}" alt="Property Image" class="gallery-image">`
-              ).join('')}
+            <div class="gallery">
+              ${property.galleryImages && Array.isArray(property.galleryImages) ? 
+                property.galleryImages.map((img, index) => 
+                  `<img src="cid:galleryImage${index}" alt="Property Image ${index+1}" class="gallery-image">`
+                ).join('') : ''}
             </div>
             
             <a href="https://baayrealty.com/properties/${property._id}" class="button">View Property</a>
@@ -872,17 +881,27 @@ router.post('/properties', async (req, res) => {
       }
     }
 
-    // Send notification to each realtor
+    // Send notification to each realtor - with error handling
     realtors.forEach(realtor => {
-      io.to(`realtor_${realtor._id}`).emit('notification', {
-        title: 'New Property Available',
-        message: `A new property "${savedProperty.propertyName}" has been added`,
-        type: 'new_property',
-        propertyId: savedProperty._id,
-        timestamp: new Date()
-      });
+      // Check if realtor and realtor._id exist before attempting to emit
+      if (realtor && realtor._id) {
+        try {
+          io.to(`realtor_${realtor._id}`).emit('notification', {
+            title: 'New Property Available',
+            message: `A new property "${savedProperty.propertyName}" has been added`,
+            type: 'new_property',
+            propertyId: savedProperty._id,
+            timestamp: new Date()
+          });
+        } catch (notificationError) {
+          console.error(`Failed to send notification to realtor ${realtor._id}:`, notificationError);
+          // Continue with other realtors even if this one fails
+        }
+      } else {
+        console.warn('Skipped notification for invalid realtor:', realtor);
+      }
     });
-    
+        
     console.log("Property notification emails sent successfully");
     
     // Send successful response
