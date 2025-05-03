@@ -670,6 +670,27 @@ router.put('/withdrawals/:id', async (req, res) => {
 
 const sendPropertyEmail = async (to, property) => {
   try {
+    // Prepare attachments array
+    const attachments = [];
+
+     // Add featured image as attachment
+     if (property.featuredImage) {
+      attachments.push({
+        filename: 'featured-image.jpg',
+        path: property.featuredImage,
+        cid: 'featuredImage' // same cid value as in the html img src
+      });
+    }
+
+    // Add gallery images as attachments
+    property.galleryImages.forEach((img, index) => {
+      attachments.push({
+        filename: `gallery-image-${index}.jpg`,
+        path: img,
+        cid: `galleryImage${index}`
+      });
+    });
+
     // Create HTML content for email with images and property details
     const htmlContent = `
       <html>
@@ -696,7 +717,8 @@ const sendPropertyEmail = async (to, property) => {
             <h1>New Property Listed!</h1>
           </div>
           <div class="property-details">
-            <img src="${property.featuredImage}" alt="${property.propertyName}" class="property-image">
+         
+            <img src="cid:featuredImage" alt="${property.propertyName}" class="property-image">
             
             <h2>${property.propertyName}</h2>
             <div class="price">₦${property.amount.toLocaleString()}</div>
@@ -734,9 +756,9 @@ const sendPropertyEmail = async (to, property) => {
             </div>
             
             <h3>Gallery Images</h3>
-            <div class="gallery">
-              ${property.galleryImages.map(img => 
-                `<img src="${img}" alt="Property Image" class="gallery-image">`
+             <div class="gallery">
+              ${property.galleryImages.map((img, index) => 
+                `<img src="cid:galleryImage${index}" alt="Property Image" class="gallery-image">`
               ).join('')}
             </div>
             
@@ -756,7 +778,8 @@ const sendPropertyEmail = async (to, property) => {
       from: '"Baay Realty" <sanieldan@zohomail.com>',
       to,
       subject: `New Property: ${property.propertyName}`,
-      html: htmlContent
+      html: htmlContent,
+      attachments
     });
     console.log(`Property email sent to ${to}`);
     return true;
