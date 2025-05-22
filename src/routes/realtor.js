@@ -71,7 +71,7 @@ router.get('/dashboard/:username', async (req, res) => {
     const totalIndirectCommissions = user.indirectCommission.reduce((acc, curr) => acc + curr.amount, 0);
 
     // Fetch total properties sold directly (from Commission schema)
-    const propertiesSold = await Commission.countDocuments({ realtorId: user._id });
+    const propertiesSold = await Commission.countDocuments({ realtorantId: user._id });
 
     // Construct response
     const dashboardData = {
@@ -758,11 +758,11 @@ router.get('/view-commission', async (req, res) => {
       return res.status(400).json({ message: 'Realtor ID is required' });
     }
 
-    const commissions = await Commission.find({ realtorId })
+    const commissions = await Commission.find({ realtorantId: realtorId  })
 
     res.json(commissions);
   } catch (error) {
-    console.error(error);
+    console.log(error);
     res.status(500).json({ message: 'Server Error' });
   }
 });
