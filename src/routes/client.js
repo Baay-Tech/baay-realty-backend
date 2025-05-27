@@ -66,7 +66,7 @@ const transporter = nodemailer.createTransport({
         <p>Dear <strong>${firstName}</strong>,</p>
         <p>We have received your payment proof for <strong>Property: ${propertyName}</strong>. Our team will review and confirm your payment within 72hrs.</p>
         <p>You can track your progress on our client portal:</p>
-        <a href="${portalLink}" class="button">Access Your Portal</a>
+        <a href="https://clients.baayrealty.com/" class="button">Access Your Portal</a>
         <p>For any inquiries, feel free to contact our support team.</p>
         <p>Best regards,</p>
         <p><strong>Baay Realty Team</strong></p>
@@ -101,7 +101,7 @@ const transporter = nodemailer.createTransport({
       <p><strong>Property:</strong> ${propertyName}</p>
       <p><strong>Amount Paid:</strong> ${amount}</p>
       <p>Please verify the payment in the admin portal:</p>
-      <a href="${portalLink}" class="button">Admin Portal</a>
+      <a href="https://superadmin.baayrealty.com/" class="button">Admin Portal</a>
       <p>Best regards,</p>
       <p><strong>Baay Realty Team</strong></p>
     </div>
@@ -593,7 +593,7 @@ try {
             <p>Dear <strong>${firstName}</strong>,</p>
             <p>Congratulations on your purchase of <strong>Property: ${propertyName}</strong>!</p>
             <p>You can track your progress on our client portal:</p>
-            <a href="${portalLink}" class="button">Access Your Portal</a>
+            <a href="https://clients.baayrealty.com/" class="button">Access Your Portal</a>
             <p>For any inquiries, feel free to contact our support team.</p>
             <p>Best regards,</p>
             <p><strong>Baay Realty Team</strong></p>

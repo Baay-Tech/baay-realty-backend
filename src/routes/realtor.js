@@ -256,7 +256,7 @@ router.put("/change-password", async (req, res) => {
             <p style="font-size: 16px;">Dear <strong>${req.body.firstName} ${req.body.lastName}</strong>,</p>
             <p>Your payment proof has been successfully uploaded. We will review it and notify you once it is confirmed. 🕒</p>
             <p>Thank you for your patience.</p>
-            <p style="margin-top: 20px;"><a href="https://baay-frontemd.onrender.com/realtor-dashboard" style="background-color: #E5B305; color: #002657; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">Go to Dashboard</a></p>
+            <p style="margin-top: 20px;"><a href="https://associates.baayrealty.com" style="background-color: #E5B305; color: #002657; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">Go to Dashboard</a></p>
             <p style="margin-top: 20px; font-size: 14px;">Baay Realty | Customer Support</p>
           </div>
         `
@@ -392,7 +392,7 @@ router.post('/withdrawal', async (req, res) => {
             <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
             <tr><td><strong>Amount:</strong></td><td>${amount}</td></tr>
           </table>
-          <p style="margin-top: 20px;"><a href="https://yourwebsite.com/admin" style="background-color: #E5B305; color: #002657; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">Process Withdrawal</a></p>
+          <p style="margin-top: 20px;"><a href="https://superadmin.baayrealty.com" style="background-color: #E5B305; color: #002657; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">Process Withdrawal</a></p>
           <p style="margin-top: 20px; font-size: 14px;">Baay Realty | Admin Team</p>
         </div>
       `,
@@ -411,7 +411,7 @@ router.post('/withdrawal', async (req, res) => {
           <p style="font-size: 16px;">Dear <strong>${firstName} ${lastName}</strong>,</p>
           <p>Your withdrawal request of <strong>${amount}</strong> has been received. 🕒 Please wait while we process your request.</p>
           <p>We will notify you once the transaction is completed.</p>
-          <p style="margin-top: 20px;"><a href="https://yourwebsite.com/dashboard" style="background-color: #E5B305; color: #002657; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">Go to Dashboard</a></p>
+          <p style="margin-top: 20px;"><a href="https://associates.baayrealty.com" style="background-color: #E5B305; color: #002657; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">Go to Dashboard</a></p>
           <p style="margin-top: 20px; font-size: 14px;">Baay Realty | Customer Support</p>
         </div>
       `,

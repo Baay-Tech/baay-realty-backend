@@ -347,7 +347,7 @@ router.post('/realtor/register', async (req, res) => {
 
         <!-- Important Links -->
         <div style="text-align: center; margin: 25px 0;">
-          <a href="${loginLink}" 
+          <a href="https://clients.baayrealty.com/" 
             style="background: #E5B305; color: white; padding: 12px 20px; 
                    text-decoration: none; border-radius: 5px; font-weight: bold;">
             🎯 Access Your Realtor Portal

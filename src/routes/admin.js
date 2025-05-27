@@ -269,7 +269,7 @@ router.put('/funds/:id', async (req, res) => {
               Please check your dashboard for confirmation.
             </p>
             <div style="text-align: center; margin: 20px 0;">
-              <a href="${process.env.CLIENT_URL}/dashboard" 
+              <a href="https://associates.baayrealty.com" 
                 style="background-color: #E5B305; color: white; padding: 10px 20px; 
                       text-decoration: none; border-radius: 5px; font-size: 16px;">
                 Go to Dashboard
@@ -560,7 +560,7 @@ router.put('/withdrawals/:id', async (req, res) => {
                             You will receive the funds in your designated account shortly.
                         </p>
                         <div style="text-align: center; margin: 20px 0;">
-                            <a href="${process.env.CLIENT_URL}/dashboard" 
+                            <a href="https://associates.baayrealty.com" 
                                style="background-color: #E5B305; color: white; padding: 10px 20px; 
                                       text-decoration: none; border-radius: 5px; font-size: 16px;">
                                 View Dashboard
@@ -770,8 +770,6 @@ const sendPropertyEmail = async (to, property) => {
                   `<img src="cid:galleryImage${index}" alt="Property Image ${index+1}" class="gallery-image">`
                 ).join('') : ''}
             </div>
-            
-            <a href="https://baayrealty.com/properties/${property._id}" class="button">View Property</a>
             
             <div class="footer">
               <p>© ${new Date().getFullYear()} Baay Realty. All rights reserved.</p>
@@ -1424,7 +1422,7 @@ const clientEmailTemplate = (firstName, propertyName) => `
       <p>You can now access all property details and documents through your dashboard.</p>
       
       <center>
-        <a href="https://baay-realty.com/dashboard" class="button">Go to Dashboard</a>
+        <a href="https://clients.baayrealty.com" class="button">Go to Dashboard</a>
       </center>
       
       <p>Should you have any questions, please don't hesitate to contact our support team.</p>
@@ -1543,7 +1541,7 @@ const directCommissionEmailTemplate = (firstName, propertyName, propertyPrice, c
       <p>This commission has been credited to your account and will be processed according to our payment schedule.</p>
       
       <center>
-        <a href="https://baay-realty.com/realtor-dashboard" class="button">View Commission Details</a>
+        <a href="https://associates.baayrealty.com" class="button">View Commission Details</a>
       </center>
       
       <p>For any inquiries regarding your commission, please contact our finance department.</p>
@@ -1668,7 +1666,7 @@ const indirectCommissionEmailTemplate = (firstName, propertyName, propertyPrice,
       <p>The commission has been credited to your account and will be processed according to our payment schedule.</p>
       
       <center>
-        <a href="https://baay-realty.com/realtor-dashboard" class="button">View Commission Details</a>
+        <a href="https://associates.baayrealty.com/" class="button">View Commission Details</a>
       </center>
       
       <p>For any inquiries regarding your commission, please contact our finance department.</p>
