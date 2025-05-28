@@ -1,42 +1,27 @@
 const mongoose = require("mongoose");
 
 const FundSchema = new mongoose.Schema({
-  user: {
+  // Realtor who submitted the payment
+  realtor: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: "realtorUser",
     required: true
   },
-  username: {
-    type: String,
+  // Client for whom the payment was made
+  client: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Client",
     required: true
   },
-  firstName: {
-    type: String,
+  // Property being purchased
+  property: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Property",
     required: true
   },
-  email: {
-    type: String,
-    required: true
-  },
-  phone: {
-    type: String,
-    required: true
-  },
-
-  lastName: {
-    type: String,
-    required: true
-  },
+  // Payment details
   amount: {
     type: Number,
-    required: true
-  },
-  paymentDate: {
-    type: Date,
-    required: true
-  },
-  proofImage: {
-    type: String,
     required: true
   },
   currency: {
@@ -48,15 +33,53 @@ const FundSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  paymentDate: {
+    type: Date,
+    required: true,
+    default: Date.now
+  },
+  proofImage: {
+    type: String,
+    required: true
+  },
+  // Status tracking
   status: {
     type: String,
     enum: ["pending", "approved", "rejected"],
     default: "pending"
   },
+  // Additional metadata
+  notes: {
+    type: String,
+    default: ""
+  },
+  // Timestamps
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  },
+  // Admin who processed the payment
+  processedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Admin"
+  },
+  processingDate: {
+    type: Date
   }
+}, {
+  timestamps: true // This will automatically manage createdAt and updatedAt
 });
 
-module.exports = mongoose.model("Funduploads", FundSchema); 
+// Add text index for search functionality
+FundSchema.index({
+  'realtor': 'text',
+  'client': 'text',
+  'property': 'text',
+  'status': 'text'
+});
+
+module.exports = mongoose.model("Fund", FundSchema);

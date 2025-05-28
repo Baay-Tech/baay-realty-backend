@@ -66,7 +66,7 @@ const transporter = nodemailer.createTransport({
         <p>Dear <strong>${firstName}</strong>,</p>
         <p>We have received your payment proof for <strong>Property: ${propertyName}</strong>. Our team will review and confirm your payment within 72hrs.</p>
         <p>You can track your progress on our client portal:</p>
-        <a href="https://clients.baayrealty.com/" class="button">Access Your Portal</a>
+        <a href="https://clients.baayrealty.com" class="button">Access Your Portal</a>
         <p>For any inquiries, feel free to contact our support team.</p>
         <p>Best regards,</p>
         <p><strong>Baay Realty Team</strong></p>

@@ -199,111 +199,189 @@ router.put("/change-password", async (req, res) => {
   });
 
 
-  router.post("/upload-fund", async (req, res) => { 
-    try {
-      // Validate required fields
-      if (!req.body.userid || !req.body.email || !req.body.firstName || !req.body.lastName || !req.body.amount || !req.body.currency) {
-        return res.status(400).json({ message: "Missing required fields" });
+router.post("/upload-fund", async (req, res) => { 
+  try {
+    // Validate required fields
+    if (!req.body.realtorId || !req.body.clientId || !req.body.propertyId || 
+        !req.body.amount || !req.body.currency || !req.body.proofImage) {
+          console.log("Missing required fields");
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Fetch realtor and client details
+    const realtor = await Realtor.findById(req.body.realtorId);
+    const client = await Client.findById(req.body.clientId);
+    const property = await Property.findById(req.body.propertyId);
+    
+    if (!realtor || !client || !property) {
+      console.log("Realtor, client or property not found");
+      return res.status(404).json({ message: "Realtor, client or property not found" });
+    }
+
+    // Create new fund record
+    const fund = new Fund({
+      realtor: req.body.realtorId,
+      client: req.body.clientId,
+      property: req.body.propertyId,
+      amount: req.body.amount,
+      currency: req.body.currency,
+      currencySymbol: req.body.currencySymbol,
+      paymentDate: req.body.paymentDate || new Date(),
+      proofImage: req.body.proofImage,
+      status: 'pending'
+    });
+
+    // Create purchase record
+    const purchase = new Purchase({
+      client: client._id,
+      ClientfirstName: client.firstName,
+      ClientlastName: client.lastName,
+      Clientphone: client.phone,
+      Clientemail: client.email,
+      realtor: realtor._id,
+      referralName: realtor.firstName,
+      referralPhone: realtor.phone,
+      referralEmail: realtor.email,
+      property: property._id,
+      propertyName: property.propertyName,
+      propertyActualPrice: property.amount,
+      amount: req.body.amount,
+      paymentMethod: 'Bank Transfer', // Default or from request
+      status: 'pending'
+    });
+
+    // Admin email template
+    const adminMailOptions = {
+      to: ['favoursunday600@gmail.com', 'clientrelations.baayprojects@gmail.com'],
+      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      subject: `📩 New Client Payment by Realtor ${realtor.firstName} ${realtor.lastName}`,
+      html: `
+        <div style="background-color: #002657; color: white; padding: 20px; text-align: center; border-radius: 10px; max-width: 600px; margin: auto;">
+          <img src="https://img.icons8.com/ios-filled/50/E5B305/money.png" alt="Payment Icon" style="width: 50px;"/>
+          <h2 style="color: #E5B305;">Realtor-Submitted Payment</h2>
+          <p style="font-size: 16px;">A realtor has submitted a payment on behalf of a client.</p>
+          <table style="width: 100%; text-align: left; margin-top: 20px;">
+            <tr><td><strong>Realtor:</strong></td><td>${realtor.firstName} ${realtor.lastName}</td></tr>
+            <tr><td><strong>Client:</strong></td><td>${client.firstName} ${client.lastName}</td></tr>
+            <tr><td><strong>Property:</strong></td><td>${property.propertyName}</td></tr>
+            <tr><td><strong>Amount:</strong></td><td>${req.body.currencySymbol}${req.body.amount} (${req.body.currency})</td></tr>
+            <tr><td><strong>Full Price:</strong></td><td>${property.amount}</td></tr>
+          </table>
+          <p style="margin-top: 20px;"><a href="https://superadmin.baayrealty.com" style="background-color: #E5B305; color: #002657; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">Verify Payment</a></p>
+          <p style="margin-top: 20px; font-size: 14px;">Baay Realty | Admin Team</p>
+        </div>
+      `
+    };
+
+    // Client email template
+    const clientMailOptions = {
+      to: client.email,
+      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      subject: `✅ Payment Submitted for ${property.propertyName}`,
+      html: `
+        <div style="background-color: #002657; color: white; padding: 20px; text-align: center; border-radius: 10px; max-width: 600px; margin: auto;">
+          <img src="https://img.icons8.com/ios-filled/50/E5B305/checked.png" alt="Success Icon" style="width: 50px;"/>
+          <h2 style="color: #E5B305;">Payment Submitted</h2>
+          <p style="font-size: 16px;">Dear ${client.firstName},</p>
+          <p>Your realtor ${realtor.firstName} ${realtor.lastName} has submitted a payment of ${req.body.currencySymbol}${req.body.amount} for ${property.propertyName}.</p>
+          <p>We will review and confirm this payment within 24-48 hours.</p>
+          <p style="margin-top: 20px;"><a href="https://clients.baayrealty.com" style="background-color: #E5B305; color: #002657; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">View Your Account</a></p>
+          <p style="margin-top: 20px; font-size: 14px;">Baay Realty | Customer Support</p>
+        </div>
+      `
+    };
+
+    // Realtor email template
+    const realtorMailOptions = {
+      to: realtor.email,
+      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      subject: `📌 Payment Submitted for ${client.firstName}'s Purchase`,
+      html: `
+        <div style="background-color: #002657; color: white; padding: 20px; text-align: center; border-radius: 10px; max-width: 600px; margin: auto;">
+          <img src="https://img.icons8.com/ios-filled/50/E5B305/upload.png" alt="Upload Icon" style="width: 50px;"/>
+          <h2 style="color: #E5B305;">Payment Submitted</h2>
+          <p style="font-size: 16px;">Dear ${realtor.firstName},</p>
+          <p>You have successfully submitted a payment of ${req.body.currencySymbol}${req.body.amount} for:</p>
+          <p><strong>Client:</strong> ${client.firstName} ${client.lastName}</p>
+          <p><strong>Property:</strong> ${property.propertyName}</p>
+          <p>We will notify you once the payment is verified.</p>
+          <p style="margin-top: 20px;"><a href="https://associates.baayrealty.com" style="background-color: #E5B305; color: #002657; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">View Your Dashboard</a></p>
+          <p style="margin-top: 20px; font-size: 14px;">Baay Realty | Realtor Support</p>
+        </div>
+      `
+    };
+
+    // Create notification
+    const notification = {
+      type: 'realtor_payment',
+      title: 'Realtor-Submitted Payment',
+      message: `${realtor.firstName} ${realtor.lastName} submitted ₦${req.body.amount} for ${client.firstName} ${client.lastName}`,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Send all emails in parallel
+    await Promise.all([
+      fund.save(),
+      purchase.save(),
+      transporter.sendMail(adminMailOptions),
+      transporter.sendMail(clientMailOptions),
+      transporter.sendMail(realtorMailOptions)
+    ]);
+
+    // Emit notification to admin room
+    const io = req.app.locals.io;
+    io.to('admin_room').emit('admin_notification', notification);
+
+    // Log activity
+    await Activity.create({
+      userId: realtor._id,
+      userModel: 'Realtor',
+      role: 'realtor',
+      activityType: 'client_payment',
+      description: `Submitted payment for client ${client.firstName} ${client.lastName}`,
+      metadata: {
+        clientId: client._id,
+        propertyId: property._id,
+        amount: req.body.amount
       }
-  
-      const fund = new Fund({
-        user: req.body.userid,
-        username: req.body.username,
-        firstName: req.body.firstName,
-        lastName: req.body.lastName,
-        amount: req.body.amount,
-        currency: req.body.currency,
-        currencySymbol: req.body.currencySymbol,
-        paymentDate: req.body.paymentDate || new Date(),
-        proofImage: req.body.proofImage,
-        email: req.body.email,
-        phone: req.body.phone
-      });
-  
-      // Admin email template
-      const adminMailOptions = {
-        to: ['favoursunday600@gmail.com', 'clientrelations.baayprojects@gmail.com'],
-        from: '"Baay Realty" <sanieldan@zohomail.com>',
-        subject: `📩 New Payment Uploaded by ${req.body.firstName} ${req.body.lastName}`,
-        html: `
-          <div style="background-color: #002657; color: white; padding: 20px; text-align: center; border-radius: 10px; max-width: 600px; margin: auto;">
-            <img src="https://img.icons8.com/ios-filled/50/E5B305/money.png" alt="Payment Icon" style="width: 50px;"/>
-            <h2 style="color: #E5B305;">New Payment Uploaded</h2>
-            <p style="font-size: 16px;">A user has uploaded a payment proof. Please verify it in the admin portal.</p>
-            <table style="width: 100%; text-align: left; margin-top: 20px;">
-              <tr><td><strong>User:</strong></td><td>${req.body.firstName} ${req.body.lastName}</td></tr>
-              <tr><td><strong>Email:</strong></td><td>${req.body.email}</td></tr>
-              <tr><td><strong>Phone:</strong></td><td>${req.body.phone}</td></tr>
-              <tr><td><strong>Amount:</strong></td><td>${req.body.amount}</td></tr>
-              <tr><td><strong>Amount:</strong></td><td>${req.body.currencySymbol}${req.body.amount} (${req.body.currency})</td></tr>
-            </table>
-            <p style="margin-top: 20px; font-size: 14px;">Baay Realty | Admin Team</p>
-          </div>
-        `
-      };
-  
-      await transporter.sendMail(adminMailOptions);
-  
-      // User email template
-      const userMailOptions = {
-        to: req.body.email,
-        from: '"Baay Realty" <sanieldan@zohomail.com>',
-        subject: `✅ Payment Proof Uploaded Successfully`,
-        html: `
-          <div style="background-color: #002657; color: white; padding: 20px; text-align: center; border-radius: 10px; max-width: 600px; margin: auto;">
-            <img src="https://img.icons8.com/ios-filled/50/E5B305/upload.png" alt="Upload Icon" style="width: 50px;"/>
-            <h2 style="color: #E5B305;">Payment Proof Uploaded</h2>
-            <p style="font-size: 16px;">Dear <strong>${req.body.firstName} ${req.body.lastName}</strong>,</p>
-            <p>Your payment proof has been successfully uploaded. We will review it and notify you once it is confirmed. 🕒</p>
-            <p>Thank you for your patience.</p>
-            <p style="margin-top: 20px;"><a href="https://associates.baayrealty.com" style="background-color: #E5B305; color: #002657; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">Go to Dashboard</a></p>
-            <p style="margin-top: 20px; font-size: 14px;">Baay Realty | Customer Support</p>
-          </div>
-        `
-      };
-  
-      const notification = {
-        type: 'payment',
-        title: 'New Payment Uploaded',
-        message: `${req.body.firstName} ${req.body.lastName} uploaded a payment of ${req.body.currency} ${req.body.amount} `,
-        timestamp: new Date().toISOString()
-      };
-      
-      // Get io instance and emit to admin room
-      const io = req.app.locals.io;
-      
-      // Debug log before emitting
-      console.log('Emitting notification to admin_room:', notification);
-      console.log('Current admin connections:', req.app.locals.connectedUsers.admins);
-      
-      io.to('admin_room').emit('admin_notification', notification);
-  
-      await transporter.sendMail(userMailOptions);
-      await fund.save();
-  
-      res.status(201).json(fund);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
+    });
+
+    res.status(201).json({
+      fund,
+      purchase,
+      message: "Payment submitted successfully. Notifications sent to all parties."
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
   
 
 
-// Fetch funding history for a user
+// Updated route to fetch funding history with populated data
 router.get("/funding-history/:userId", async (req, res) => {
-    try {
-      const { userId } = req.params;
-  
-      // Fetch funding records by userId
-      const fundingRecords = await Fund.find({ user: userId });
-  
-      res.status(200).json(fundingRecords);
-    } catch (error) {
-      console.error("Error fetching funding history:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
+  try {
+    const { userId } = req.params;
+
+    // Fetch funding records with populated client and property data
+    const fundingRecords = await Fund.find({ realtor: userId })
+      .populate({
+        path: 'client',
+        select: 'firstName lastName email phone'
+      })
+      .populate({
+        path: 'property',
+        select: 'propertyName propertyType city state amount'
+      })
+      .sort({ paymentDate: -1 }); // Sort by newest first
+
+    res.status(200).json(fundingRecords);
+  } catch (error) {
+    console.error("Error fetching funding history:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 
 
@@ -984,6 +1062,36 @@ router.get('/my-activities', async (req, res) => {
   }
 });
 
+
+
+router.get("/:realtorId/resources", async(req, res) => {
+  try {
+    const realtorId = req.params.realtorId;
+
+    // Verify realtor exists
+    const realtor = await Realtor.findById(realtorId);
+    if (!realtor) {
+      return res.status(404).json({ message: 'Realtor not found' });
+    }
+
+    // Get all properties
+    const properties = await Property.find({});
+
+    // Get clients referred by this realtor
+    const clients = await Client.find({
+      'upline.name': { $in: [realtor.firstName + ' ' + realtor.lastName] }
+    });
+
+    res.status(200).json({
+      properties,
+      clients
+    });
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+})
 
 
   

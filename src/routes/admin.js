@@ -90,75 +90,75 @@ const transporter = nodemailer.createTransport({
   };
   
 
-  router.get('/dashboard-stats', async (req, res) => {
-    try {
-      const [totalRealtor, totalWithdrawals, pendingWithdrawals, totalPropertiesBought, totalAmount] = await Promise.all([
-        RealtorUser.countDocuments(),
-        Realtorwithdrawalrequest.aggregate([
-          { $group: { _id: null, total: { $sum: "$amount" } } }
-        ]),
-        Realtorwithdrawalrequest.aggregate([
-          { $match: { status: 'pending' } },
-          { $group: { _id: null, total: { $sum: "$amount" } } }
-        ]),
-        Purchase.countDocuments(),
-        Purchase.aggregate([
-          { $group: { _id: null, total: { $sum: "$amount" } } }
-        ])
-      ]);
+router.get('/dashboard-stats', async (req, res) => {
+  try {
+    const [totalRealtor, totalWithdrawals, pendingWithdrawals, totalPropertiesBought, totalAmount] = await Promise.all([
+      RealtorUser.countDocuments(),
+      Realtorwithdrawalrequest.aggregate([
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]),
+      Realtorwithdrawalrequest.aggregate([
+        { $match: { status: 'pending' } },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]),
+      Purchase.countDocuments(),
+      Purchase.aggregate([
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ])
+    ]);
 
-      console.log(totalRealtor)
-  
-      res.json({
-        totalRealtor,
-        totalWithdrawn: totalWithdrawals[0]?.total || 0,
-        pendingWithdrawals: pendingWithdrawals[0]?.total || 0,
-        totalPropertiesBought: totalPropertiesBought,
-        totalAmount: totalAmount[0]?.total || 0
-      });
-  
-    } catch (error) {
-      console.log('Error fetching dashboard stats:', error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  });
+    console.log(totalRealtor)
+
+    res.json({
+      totalRealtor,
+      totalWithdrawn: totalWithdrawals[0]?.total || 0,
+      pendingWithdrawals: pendingWithdrawals[0]?.total || 0,
+      totalPropertiesBought: totalPropertiesBought,
+      totalAmount: totalAmount[0]?.total || 0
+    });
+
+  } catch (error) {
+    console.log('Error fetching dashboard stats:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 
-  router.get('/admin-dashboard-stats', async (req, res) => {
-    try {
-      const [totalRealtors, totalWithdrawals, pendingWithdrawals] = await Promise.all([
-        RealtorUser.countDocuments(),
-        Realtorwithdrawalrequest.aggregate([
-          { $group: { _id: null, total: { $sum: "$amount" } } }
-        ]),
-        Realtorwithdrawalrequest.aggregate([
-          { $match: { status: 'pending' } },
-          { $group: { _id: null, total: { $sum: "$amount" } } }
-        ])
-      ]);
-  
-      res.json({
-        totalRealtors, // Ensure this matches the expected key in the frontend
-        totalWithdrawn: totalWithdrawals[0]?.total || 0,
-        pendingWithdrawals: pendingWithdrawals[0]?.total || 0
-      });
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  });
+router.get('/admin-dashboard-stats', async (req, res) => {
+  try {
+    const [totalRealtors, totalWithdrawals, pendingWithdrawals] = await Promise.all([
+      RealtorUser.countDocuments(),
+      Realtorwithdrawalrequest.aggregate([
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]),
+      Realtorwithdrawalrequest.aggregate([
+        { $match: { status: 'pending' } },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ])
+    ]);
+
+    res.json({
+      totalRealtors, // Ensure this matches the expected key in the frontend
+      totalWithdrawn: totalWithdrawals[0]?.total || 0,
+      pendingWithdrawals: pendingWithdrawals[0]?.total || 0
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 router.get("/commissions", async (req, res) => {
-    try {
-      const commissions = await commissionactivation();
-     
-      console.log(commissions);
-      res.status(200).json(commissions);
-    } catch (error) {
-      console.log("Error fetching commissions:", error);
-      res.status(500).json({ message: "Failed to fetch commissions" });
-    }
-  });
+  try {
+    const commissions = await commissionactivation();
+    
+    console.log(commissions);
+    res.status(200).json(commissions);
+  } catch (error) {
+    console.log("Error fetching commissions:", error);
+    res.status(500).json({ message: "Failed to fetch commissions" });
+  }
+});
   
   // POST /api/commissions - Save new commissions
 router.post("/commissions", async(req, res) => {
@@ -184,174 +184,377 @@ router.post("/commissions", async(req, res) => {
 
 
 // Get all funds
+// Updated admin funds route with population
 router.get('/funds', async (req, res) => {
-    try {
-        // Fetch all funds and populate the 'RealtorSchema' field with 'username' and 'fullName' from realtorUser
-        const funds = await Funduploads.find()
-        res.json(funds);
-    } catch (error) {
-        console.log("Error fetching funds:", error);
-        res.status(500).json({ message: 'Server error' });
-    }
+  try {
+      // Fetch all funds with populated data
+      const funds = await Funduploads.find()
+          .populate({
+              path: 'realtor',
+              select: 'firstName lastName email phone username'
+          })
+          .populate({
+              path: 'client',
+              select: 'firstName lastName email phone'
+          })
+          .populate({
+              path: 'property',
+              select: 'propertyName propertyType city state amount'
+          })
+          .sort({ createdAt: -1 }); // Newest first
+
+      res.json(funds);
+  } catch (error) {
+      console.log("Error fetching funds:", error);
+      res.status(500).json({ message: 'Server error' });
+  }
 });
 
 
 router.put('/funds/:id', async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { status, amount } = req.body;
+    const { status, rejectionReason } = req.body;
     const { id } = req.params;
     const io = req.app.locals.io;
-    const connectedUsers = req.app.get('connectedUsers');
 
-    console.log(req.body);
+    console.log('Fund update request:', { id, status, rejectionReason });
 
-    const fund = await Funduploads.findById(new mongoose.Types.ObjectId(id));
-
-    console.log("Fund Record:", fund);
+    const fund = await Funduploads.findById(new mongoose.Types.ObjectId(id)).session(session);
     if (!fund) {
+      await session.abortTransaction();
+      session.endSession();
       console.log('Fund request not found in DB');
       return res.status(404).json({ message: 'Fund request not found' });
     }
 
-    const { email, firstName, lastName, user } = fund;
+    const { email, firstName, lastName, user, amount, realtor, property, client, propertyName } = fund;
 
-   // Log admin activity (pass req as last parameter)
-   await logActivity(
-    null,
-    'Admin',
-    "admin",
-    'fund_approval',
-    'fund request',
-    {
-      fundId: id,
-      amount: amount,
-      status: status,
-      userId: user,
-      userEmail: email
-    },
-    req // Add this parameter
-  );
+    const clientdetails = await Client.findById({_id: client})
 
-  // Log user activity (pass req as last parameter)
-  await logActivity(
-    user,
-    'Realtor',
-    'realtor',
-    'fund_status_update',
-    `Your fund request was ${status} by admin`,
-    {
-      fundId: id,
-      amount: amount,
-      status: status,
-      adminName: 'admin'
-    },
-    req // Add this parameter
-  );
+    console.log(clientdetails)
 
-    if (!user) {
-      console.log('User ID is missing in the fund document');
-      return res.status(400).json({ message: 'User ID is missing in the fund document' });
+    if(!clientdetails){
+      console.log("no data found")
+      return null
     }
 
-    let subject, htmlContent;
+    // Log activities
+    await logActivity(
+      null,
+      'Admin',
+      "admin",
+      'fund_approval',
+      'fund request',
+      {
+        fundId: id,
+        amount: amount,
+        status: status,
+        userId: user,
+        userEmail: email
+      }
+    );
+
+    await logActivity(
+      realtor,
+      'Realtor',
+      'realtor',
+      'fund_status_update',
+      `Your fund request was ${status} by admin`,
+      {
+        fundId: id,
+        amount: amount,
+        status: status,
+        adminName: 'admin'
+      }
+    );
+
+    if (!realtor) {
+      await session.abortTransaction();
+      session.endSession();
+      console.log('Realtor ID is missing in the fund document');
+      return res.status(400).json({ message: 'Realtor ID is missing in the fund document' });
+    }
+
+    const realtorDoc = await RealtorUser.findById(realtor).session(session);
+    if (!realtorDoc) {
+      await session.abortTransaction();
+      session.endSession();
+      console.log('Realtor not found');
+      return res.status(404).json({ message: 'Realtor not found' });
+    }
+
+    let subject, htmlContent, clientSubject, clientHtmlContent;
 
     if (status === "approved") {
-      subject = "🎉 Funds Payment Approved!";
+      // Email to Realtor - Approval
+      subject = "🎉 Property Payment Approved! - Baay Realty";
       htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden;">
           <div style="background-color: #002657; padding: 20px; text-align: center; color: white;">
-            <h2>Funds Payment Approved</h2>
+            <img src="https://baayrealty.com/logo.png" alt="Baay Realty Logo" width="150" style="margin-bottom: 15px;">
+            <h2>Property Payment Approved</h2>
           </div>
           <div style="padding: 20px; background-color: #f9f9f9;">
-            <p style="font-size: 16px; color: #333;">Dear <strong>${firstName} ${lastName}</strong>,</p>
+            <p style="font-size: 16px; color: #333;">Dear <strong>${realtorDoc.firstName} ${realtorDoc.lastName}</strong>,</p>
             <p style="font-size: 16px; color: #333;">
-              Great news! Your funds payment request has been <strong style="color: #E5B305;">approved</strong>. 
-              Please check your dashboard for confirmation.
+              We're pleased to inform you that the property payment you made for your client 
+              <strong>${clientdetails.firstName} ${clientdetails.lastName}</strong> has been <strong style="color: #E5B305;">approved</strong>.
             </p>
+            
+            <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; margin: 15px 0;">
+              <h3 style="margin-top: 0; color: #002657;">Payment Details</h3>
+              <p><strong>Client:</strong> ${clientdetails.firstName} ${clientdetails.lastName}</p>
+              <p><strong>Amount:</strong> ₦${Number(amount).toLocaleString()}</p>
+              ${propertyName ? `<p><strong>Property:</strong> ${propertyName}</p>` : ''}
+              <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            </div>
+
+            <p style="font-size: 16px; color: #333;">
+              Your client has been notified and the transaction is now complete. Any applicable commissions will be processed shortly.
+            </p>
+            
             <div style="text-align: center; margin: 20px 0;">
               <a href="https://associates.baayrealty.com" 
                 style="background-color: #E5B305; color: white; padding: 10px 20px; 
                       text-decoration: none; border-radius: 5px; font-size: 16px;">
-                Go to Dashboard
+                View in Dashboard
               </a>
             </div>
-            <p style="font-size: 16px; color: #333;">
-              If you have any questions, please contact our support team.
-            </p>
           </div>
-          <div style="background-color: #002657; padding: 10px; text-align: center; color: white;">
+          <div style="background-color: #002657; padding: 10px; text-align: center; color: white; font-size: 12px;">
             <p>📞 +2348071260398 | 📧 clientrelations.baayprojects@gmail.com</p>
+            <p>© ${new Date().getFullYear()} Baay Realty. All rights reserved.</p>
           </div>
         </div>
       `;
 
+      // Email to Client - Approval
+      if (email && firstName && lastName) {
+        clientSubject = "✅ Your Property Payment Confirmed - Baay Realty";
+        clientHtmlContent = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden;">
+            <div style="background-color: #002657; padding: 20px; text-align: center; color: white;">
+              <img src="https://baayrealty.com/logo.png" alt="Baay Realty Logo" width="150" style="margin-bottom: 15px;">
+              <h2>Payment Confirmed</h2>
+            </div>
+            <div style="padding: 20px; background-color: #f9f9f9;">
+              <p style="font-size: 16px; color: #333;">Dear <strong>${clientdetails.firstName} ${clientdetails.lastName}</strong>,</p>
+              <p style="font-size: 16px; color: #333;">
+                We're pleased to inform you that your property payment has been successfully processed and confirmed.
+              </p>
+              
+              <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <h3 style="margin-top: 0; color: #002657;">Transaction Details</h3>
+                <p><strong>Amount:</strong> ₦${Number(amount).toLocaleString()}</p>
+                ${propertyName ? `<p><strong>Property:</strong> ${propertyName}</p>` : ''}
+                <p><strong>Realtor:</strong> ${realtorDoc.firstName} ${realtorDoc.lastName}</p>
+                <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+              </div>
+
+              <p style="font-size: 16px; color: #333;">
+                Your realtor ${realtorDoc.firstName} will contact you shortly with next steps regarding your property.
+              </p>
+              
+              <p style="font-size: 16px; color: #333;">
+                Thank you for choosing Baay Realty for your real estate needs.
+              </p>
+            </div>
+            <div style="background-color: #002657; padding: 10px; text-align: center; color: white; font-size: 12px;">
+              <p>📞 +2348071260398 | 📧 clientrelations.baayprojects@gmail.com</p>
+              <p>© ${new Date().getFullYear()} Baay Realty. All rights reserved.</p>
+            </div>
+          </div>
+        `;
+      }
+
+      // Update the realtor's funding and balance
+      const numericAmount = parseFloat(amount);
+      realtorDoc.funding = (parseFloat(realtorDoc.funding) || 0) + numericAmount;
+      realtorDoc.balance = (parseFloat(realtorDoc.balance) || 0) + numericAmount;
+      await realtorDoc.save({ session });
+
+      // Handle commission calculation if this is a property purchase
+      if (property) {
+        const propertyDoc = await Property.findById(property).session(session);
+        if (propertyDoc) {
+          const purchaseAmount = Number(amount);
+          const commissionRate = Number(propertyDoc.commission);
+          const indirectCommissionRate = Number(propertyDoc.indirectcommission);
+
+          if (!isNaN(purchaseAmount) && !isNaN(commissionRate)) {
+            // Calculate direct commission
+            const directCommissionAmount = (purchaseAmount * commissionRate) / 100;
+
+            // Save direct commission to Realtor
+            realtorDoc.directCommission.push({
+              amount: directCommissionAmount,
+              purchaseId: fund._id,
+            });
+            await realtorDoc.save({ session });
+
+            // Save direct commission transaction
+            const directCommission = new Commission({
+              type: 'direct',
+              amount: directCommissionAmount,
+              purchaseId: fund._id,
+              realtorantId: realtorDoc._id,
+              clientDetails: {
+                clientId: client,
+                firstName: clientdetails.firstName,
+                lastName: clientdetails.lastName,
+                email: clientdetails.email,
+                phone: clientdetails.phone,
+              },
+              propertyDetails: {
+                propertyId: property,
+                propertyName: propertyName || propertyDoc.propertyName,
+                amountPaid: amount,
+              },
+            });
+            await directCommission.save({ session });
+
+            // Log commission activity
+            await logActivity(
+              realtorDoc._id,
+              'Realtor',
+              'realtor',
+              'direct_commission',
+              `You earned direct commission from ${firstName}'s purchase`,
+              {
+                purchaseId: fund._id,
+                propertyId: property,
+                clientId: client,
+                amount: directCommissionAmount
+              }
+            );
+
+            // Handle indirect commission (if Realtor has an upline)
+            let indirectCommissionAmount = 0;
+            let uplineRealtor = null;
+
+            if (realtorDoc.upline && realtorDoc.upline.email && !isNaN(indirectCommissionRate)) {
+              uplineRealtor = await RealtorUser.findOne({ email: realtorDoc.upline.email }).session(session);
+              if (uplineRealtor) {
+                indirectCommissionAmount = (purchaseAmount * indirectCommissionRate) / 100;
+
+                // Save indirect commission to upline Realtor
+                uplineRealtor.indirectCommission.push({
+                  amount: indirectCommissionAmount,
+                  purchaseId: fund._id,
+                });
+                await uplineRealtor.save({ session });
+
+                // Save indirect commission transaction
+                const indirectCommission = new Commission({
+                  type: 'indirect',
+                  amount: indirectCommissionAmount,
+                  purchaseId: fund._id,
+                  realtorantId: uplineRealtor._id,
+                  clientDetails: {
+                    clientId: client,
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: email,
+                    phone: fund.phone,
+                  },
+                  propertyDetails: {
+                    propertyId: property,
+                    propertyName: propertyName || propertyDoc.propertyName,
+                    amountPaid: amount,
+                  },
+                });
+                await indirectCommission.save({ session });
+
+                // Log indirect commission activity
+                await logActivity(
+                  uplineRealtor._id,
+                  'Realtor',
+                  'realtor',
+                  'indirect_commission',
+                  `You earned indirect commission from ${firstName}'s purchase`,
+                  {
+                    purchaseId: fund._id,
+                    propertyId: property,
+                    clientId: client,
+                    amount: indirectCommissionAmount
+                  }
+                );
+              }
+            }
+          }
+        }
+      }
+
+      // Update the fund status
+      fund.status = status;
+      await fund.save({ session });
+
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      // Send notifications
       try {
-        // Update the user's funding and balance
-        const userDoc = await RealtorUser.findById(user);
-        if (!userDoc) {
-          console.log('User not found');
-          return res.status(404).json({ message: 'User not found' });
-        }
-
-        // Parse amount and current balance as numbers
-        const numericAmount = parseFloat(amount);
-        let currentBalance = 0;
-
-        // Initialize balance if it doesn't exist or convert from string
-        if (userDoc.balance) {
-          currentBalance = parseFloat(userDoc.balance);
-        }
-
-        // Initialize funding if it doesn't exist
-        if (!userDoc.funding) {
-          userDoc.funding = 0;
-        }
-
-        // Update funding and balance with numeric values
-        userDoc.funding = parseFloat(userDoc.funding) + numericAmount;
-        userDoc.balance = currentBalance + numericAmount;
-
-        // Save the updated user document
-        await userDoc.save();
-
-        console.log(`Attempting to emit to realtor_${user}`);
-        console.log('Current Socket.IO state:', {
-          socketsCount: io.engine?.clientsCount,
-          rooms: io.sockets?.adapter?.rooms ? [...io.sockets.adapter.rooms.keys()] : 'N/A'
+        // Notification to Realtor
+        io.to(`realtor_${realtor}`).emit('notification', {
+          title: 'Funds Approved',
+          message: `Your fund request of ₦${Number(amount).toLocaleString()} has been approved`,
+          type: 'fund_approved',
+          amount: amount,
+          timestamp: new Date()
         });
 
-        // When emitting
-        try {
-          io.to(`realtor_${user}`).emit('notification', {
-            title: 'Funds Approved',
-            message: `Your fund request of ₦${amount} has been approved`,
-            type: 'fund_approved',
+        // Notification to Client if exists
+        if (client) {
+          io.to(`client_${client}`).emit('notification', {
+            title: 'Payment Confirmed',
+            message: `Your payment of ₦${Number(amount).toLocaleString()} has been confirmed`,
+            type: 'payment_confirmed',
             amount: amount,
             timestamp: new Date()
           });
-          console.log('Notification emitted successfully');
-        } catch (emitError) {
-          console.error('Error emitting notification:', emitError);
         }
-
-      } catch (error) {
-        console.log('Error updating user balance:', error);
-        return res.status(500).json({ message: 'Error updating user balance' });
+      } catch (emitError) {
+        console.error('Error emitting notification:', emitError);
       }
 
     } else if (status === "rejected") {
-      subject = "⚠️ Funds Payment Rejected!";
+      // Update rejection reason if provided
+      if (rejectionReason) {
+        fund.rejectionReason = rejectionReason;
+      }
+
+      // Email to Realtor - Rejection
+      subject = "⚠️ Property Payment Rejected - Baay Realty";
       htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden;">
           <div style="background-color: #002657; padding: 20px; text-align: center; color: white;">
-            <h2>Funds Payment Rejected</h2>
+            <img src="https://baayrealty.com/logo.png" alt="Baay Realty Logo" width="150" style="margin-bottom: 15px;">
+            <h2>Payment Rejected</h2>
           </div>
           <div style="padding: 20px; background-color: #f9f9f9;">
-            <p style="font-size: 16px; color: #333;">Dear <strong>${firstName} ${lastName}</strong>,</p>
+            <p style="font-size: 16px; color: #333;">Dear <strong>${realtorDoc.firstName} ${realtorDoc.lastName}</strong>,</p>
             <p style="font-size: 16px; color: #333;">
-              Unfortunately, your funds payment request has been <strong style="color: red;">rejected</strong>. 
-              We were unable to verify it. Please contact our support team so we can assist you.
+              We regret to inform you that the property payment you submitted for your client 
+              <strong>${clientdetails.firstName} ${clientdetails.lastName}</strong> has been <strong style="color: red;">rejected</strong>.
             </p>
+            
+            <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; margin: 15px 0;">
+              <h3 style="margin-top: 0; color: #002657;">Payment Details</h3>
+              <p><strong>Amount:</strong> ₦${Number(amount).toLocaleString()}</p>
+              ${propertyName ? `<p><strong>Property:</strong> ${propertyName}</p>` : ''}
+              <p><strong>Reason:</strong> ${fund.rejectionReason || 'Payment verification failed'}</p>
+              <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            </div>
+
+            <p style="font-size: 16px; color: #333;">
+              Please review the payment details and contact our support team if you believe this was a mistake.
+              Your client has been notified about this rejection.
+            </p>
+            
             <div style="text-align: center; margin: 20px 0;">
               <a href="mailto:clientrelations@baayprojects.com" 
                 style="background-color: #E5B305; color: white; padding: 10px 20px; 
@@ -359,96 +562,172 @@ router.put('/funds/:id', async (req, res) => {
                 Contact Support
               </a>
             </div>
-            <p style="font-size: 16px; color: #333;">
-              We appreciate your understanding.
-            </p>
           </div>
-          <div style="background-color: #002657; padding: 10px; text-align: center; color: white;">
-            <p>📞 +2348071260398 | 📧 clientrelations@baayprojects.com</p>
+          <div style="background-color: #002657; padding: 10px; text-align: center; color: white; font-size: 12px;">
+            <p>📞 +2348071260398 | 📧 clientrelations.baayprojects@gmail.com</p>
+            <p>© ${new Date().getFullYear()} Baay Realty. All rights reserved.</p>
           </div>
         </div>
       `;
+
+      // Email to Client - Rejection
+      if (email && firstName && lastName) {
+        clientSubject = "⚠️ Payment Issue - Baay Realty";
+        clientHtmlContent = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden;">
+            <div style="background-color: #002657; padding: 20px; text-align: center; color: white;">
+              <img src="https://baayrealty.com/logo.png" alt="Baay Realty Logo" width="150" style="margin-bottom: 15px;">
+              <h2>Payment Issue</h2>
+            </div>
+            <div style="padding: 20px; background-color: #f9f9f9;">
+              <p style="font-size: 16px; color: #333;">Dear <strong>${clientdetails.firstName} ${clientdetails.lastName}</strong>,</p>
+              <p style="font-size: 16px; color: #333;">
+                We're contacting you regarding an issue with your recent property payment.
+              </p>
+              
+              <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <h3 style="margin-top: 0; color: #002657;">Payment Status</h3>
+                <p><strong>Status:</strong> <span style="color: red;">Rejected</span></p>
+                <p><strong>Amount:</strong> ₦${Number(amount).toLocaleString()}</p>
+                ${propertyName ? `<p><strong>Property:</strong> ${propertyName}</p>` : ''}
+                <p><strong>Reason:</strong> ${fund.rejectionReason || 'Payment verification failed'}</p>
+                <p><strong>Your Realtor:</strong> ${realtorDoc.firstName} ${realtorDoc.lastName}</p>
+              </div>
+
+              <p style="font-size: 16px; color: #333;">
+                Your realtor has been notified and will contact you to resolve this issue.
+                You may also contact our support team directly if you need immediate assistance.
+              </p>
+              
+              <div style="text-align: center; margin: 20px 0;">
+                <a href="mailto:clientrelations@baayprojects.com" 
+                  style="background-color: #E5B305; color: white; padding: 10px 20px; 
+                        text-decoration: none; border-radius: 5px; font-size: 16px;">
+                  Contact Support
+                </a>
+              </div>
+            </div>
+            <div style="background-color: #002657; padding: 10px; text-align: center; color: white; font-size: 12px;">
+              <p>📞 +2348071260398 | 📧 clientrelations.baayprojects@gmail.com</p>
+              <p>© ${new Date().getFullYear()} Baay Realty. All rights reserved.</p>
+            </div>
+          </div>
+        `;
+      }
+
+      // Update the fund status
+      fund.status = status;
+      await fund.save({ session });
+
+      // Commit transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      // Send notifications
+      try {
+        // Notification to Realtor
+        io.to(`realtor_${realtor}`).emit('notification', {
+          title: 'Funds Rejected',
+          message: `Your fund request of ₦${Number(amount).toLocaleString()} was rejected`,
+          type: 'fund_rejected',
+          amount: amount,
+          timestamp: new Date(),
+          reason: fund.rejectionReason
+        });
+
+        // Notification to Client if exists
+        if (client) {
+          io.to(`client_${client}`).emit('notification', {
+            title: 'Payment Issue',
+            message: `Your payment of ₦${Number(amount).toLocaleString()} was rejected`,
+            type: 'payment_rejected',
+            amount: amount,
+            timestamp: new Date()
+          });
+        }
+      } catch (emitError) {
+        console.error('Error emitting rejection notification:', emitError);
+      }
     } else {
-      // Send rejection notification to realtor
-      console.log(`Attempting to emit to realtor_${user}`);
-      io.to(`realtor_${user}`).emit('notification', {
-        title: 'Funds Rejected',
-        message: `Your fund request of ₦${amount} was rejected`,
-        type: 'fund_rejected',
-        amount: amount,
-        timestamp: new Date()
-      });
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    // Send email
-    const emailSent = await sendEmail(email, subject, "Plain text version", htmlContent);
-    if (!emailSent) {
-      console.log('Failed to send email');
-      return res.status(500).json({ message: "Failed to send email" });
+    // Send emails
+    try {
+      // Send to realtor
+      await sendEmail(realtorDoc.email, subject, "Plain text version", htmlContent);
+      
+      // Send to client if email exists
+      if (email && clientSubject && clientHtmlContent) {
+        await sendEmail(email, clientSubject, "Plain text version", clientHtmlContent);
+      }
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError);
+      // Don't fail the request if email fails
     }
 
-    // Update the fund status
-    const updatedFund = await Funduploads.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
-
-    res.json(updatedFund);
+    res.json(fund);
   } catch (error) {
-    console.log("Error updating fund status:", error);
-    res.status(500).json({ message: 'Server error' });
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Error updating fund status:", error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
   
   // Delete fund request
-  router.delete('/funds/:id', async (req, res) => {
-    try {
-      const fund = await Funduploads.findByIdAndDelete(req.params.id);
-      if (!fund) return res.status(404).json({ message: 'Fund request not found' });
-      res.json({ message: 'Fund request deleted' });
-    } catch (error) {
-        console.log("Error saving commissions:", error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  });
+router.delete('/funds/:id', async (req, res) => {
+  try {
+    const fund = await Funduploads.findByIdAndDelete(req.params.id);
+    if (!fund) return res.status(404).json({ message: 'Fund request not found' });
+    res.json({ message: 'Fund request deleted' });
+  } catch (error) {
+      console.log("Error saving commissions:", error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
   
-  router.get('/birthday-message', async (req, res) => {
-    try {
-      const message = await BirthdayMessage.findOne().sort({ createdAt: -1 });
-      res.json(message);
-    } catch (error) {
-      console.error(error);
-      res.status(500).send('Server Error');
-    }
-  });
+router.get('/birthday-message', async (req, res) => {
+  try {
+    const message = await BirthdayMessage.findOne().sort({ createdAt: -1 });
+    res.json(message);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server Error');
+  }
+});
   
   // Create/Update message
-  router.post('/birthday-message', async (req, res) => {
-    try {
-      const { message } = req.body;
-      
-      // Find the most recent message
-      let birthdayMessage = await BirthdayMessage.findOne().sort({ createdAt: -1 });
-  
-      if (birthdayMessage) {
-        // Update existing message
-        birthdayMessage.message = message;
-        birthdayMessage.updatedAt = Date.now();
-      } else {
-        // Create new message
-        birthdayMessage = new BirthdayMessage({ message });
-      }
-  
-      await birthdayMessage.save();
-      res.json(birthdayMessage);
-    } catch (error) {
-      console.error(error);
-      res.status(500).send('Server Error');
+router.post('/birthday-message', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    // Find the most recent message
+    let birthdayMessage = await BirthdayMessage.findOne().sort({ createdAt: -1 });
+
+    if (birthdayMessage) {
+      // Update existing message
+      birthdayMessage.message = message;
+      birthdayMessage.updatedAt = Date.now();
+    } else {
+      // Create new message
+      birthdayMessage = new BirthdayMessage({ message });
     }
-  });
+
+    await birthdayMessage.save();
+    res.json(birthdayMessage);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server Error');
+  }
+});
 
 // Route to fetch today's birthdays
 router.get('/todays-birthdays', async (req, res) => {
@@ -493,17 +772,17 @@ router.get('/todays-birthdays', async (req, res) => {
 
 // Get withdrawals by status
 router.get('/withdrawals/:status', async (req, res) => {
-    try {
-      const { status } = req.params;
-      const requests = await Realtorwithdrawalrequest.find({ status })
-        .sort({ timestamp: -1 })
-        .lean();
-      res.json(requests);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  });
+  try {
+    const { status } = req.params;
+    const requests = await Realtorwithdrawalrequest.find({ status })
+      .sort({ timestamp: -1 })
+      .lean();
+    res.json(requests);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
   
 // Update withdrawal status
 router.put('/withdrawals/:id', async (req, res) => {
@@ -915,29 +1194,29 @@ router.post('/properties', async (req, res) => {
 
 // Get all properties
 router.get('/properties', async (req, res) => {
-    try {
-      const { category, search } = req.query;
-      const query = {};
-      if (category && category !== 'All') query.propertyType = category;
-      if (search) query.propertyName = new RegExp(search, 'i');
-      
-      const properties = await Property.find(query);
-      res.json(properties);
-    } catch (err) {
-      res.status(500).json({ message: err.message });
-    }
-  });
+  try {
+    const { category, search } = req.query;
+    const query = {};
+    if (category && category !== 'All') query.propertyType = category;
+    if (search) query.propertyName = new RegExp(search, 'i');
+    
+    const properties = await Property.find(query);
+    res.json(properties);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
   
   // Get single property
-  router.get('/properties/:id', async (req, res) => {
-    try {
-      const property = await Property.findById(req.params.id);
-      if (!property) return res.status(404).json({ message: 'Property not found' });
-      res.json(property);
-    } catch (err) {
-      res.status(500).json({ message: err.message });
-    }
-  });
+router.get('/properties/:id', async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ message: 'Property not found' });
+    res.json(property);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
   
   // Update property
 router.put('/properties/:id', async (req, res) => {
@@ -993,135 +1272,135 @@ router.get('/view/faq', async (req, res) => {
     }
   });
   
-  // Update FAQ
-  router.put('/faq/:id', async (req, res) => {
-    try {
-      const updatedFAQ = await FAQ.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        { new: true }
-      );
-      res.json(updatedFAQ);
-    } catch (err) {
-      res.status(400).json({ message: err.message });
-    }
-  });
+// Update FAQ
+router.put('/faq/:id', async (req, res) => {
+  try {
+    const updatedFAQ = await FAQ.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    res.json(updatedFAQ);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
   
-  // Delete FAQ
-  router.delete('/faq/:id', async (req, res) => {
-    try {
-      await FAQ.findByIdAndDelete(req.params.id);
-      res.json({ message: 'FAQ deleted successfully' });
-    } catch (err) {
-      res.status(500).json({ message: err.message });
-    }
-  });
+// Delete FAQ
+router.delete('/faq/:id', async (req, res) => {
+  try {
+    await FAQ.findByIdAndDelete(req.params.id);
+    res.json({ message: 'FAQ deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // Get all support tickets with realtors user details
 router.get("/ticket", async (req, res) => {
-    try {
-      // First get all tickets
-      const tickets = await Messages.find().sort({ createdAt: -1 });
-  
-      // Extract all user IDs from tickets
-      const userIds = tickets.map(ticket => ticket.user);
-  
-      // Get realtors users in one query
-      const Realtoruser = await RealtorUser.find(
-        { _id: { $in: userIds } },
-        'username firstName lastName phone email'
-      );
-  
-      // Create a map for quick lookup
-      const userMap = {};
-      Realtoruser.forEach(user => {
-        userMap[user._id.toString()] = {
-          username: user.username,
-          name: `${user.firstName} ${user.lastName}`,
-          phone: user.phone,
-          email: user.email
-        };
-      });
-  
-      // Combine tickets with user data
-      const ticketsWithUserData = tickets.map(ticket => ({
-        ...ticket.toObject(),
-        user: userMap[ticket.user.toString()] || { username: 'Unknown User' }
-      }));
-  
-      res.json(ticketsWithUserData);
-  
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ 
-        message: "Failed to fetch tickets",
-        error: err.message 
-      });
-    }
-  });
+  try {
+    // First get all tickets
+    const tickets = await Messages.find().sort({ createdAt: -1 });
+
+    // Extract all user IDs from tickets
+    const userIds = tickets.map(ticket => ticket.user);
+
+    // Get realtors users in one query
+    const Realtoruser = await RealtorUser.find(
+      { _id: { $in: userIds } },
+      'username firstName lastName phone email'
+    );
+
+    // Create a map for quick lookup
+    const userMap = {};
+    Realtoruser.forEach(user => {
+      userMap[user._id.toString()] = {
+        username: user.username,
+        name: `${user.firstName} ${user.lastName}`,
+        phone: user.phone,
+        email: user.email
+      };
+    });
+
+    // Combine tickets with user data
+    const ticketsWithUserData = tickets.map(ticket => ({
+      ...ticket.toObject(),
+      user: userMap[ticket.user.toString()] || { username: 'Unknown User' }
+    }));
+
+    res.json(ticketsWithUserData);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ 
+      message: "Failed to fetch tickets",
+      error: err.message 
+    });
+  }
+});
   
   // Admin replies to a ticket
-  router.post("/ticket/:id/reply", async (req, res) => {
-    try {
-      const { content } = req.body;
-      const io = req.app.locals.io;
-      const ticket = await Messages.findById(req.params.id);
-      
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket not found" });
-      }
-  
-      // Add admin reply
-      ticket.messages.push({ sender: "admin", content });
-      ticket.status = "pending";
-      ticket.updatedAt = Date.now();
-      
-      await ticket.save();
-  
-      // Determine user type (default to 'client' if not specified)
-      const userType = ticket.userType || 'client';
-      const roomName = `${userType}_${ticket.user}`;
-  
-      // Log activity
-      await Activity.create({
-        userId: ticket.user,
-        userModel: userType === 'client' ? 'client' : 'Realtor',
-        role: userType,
-        activityType: 'support_message',
-        description: 'You have a new reply to your support ticket',
-        metadata: {
-          ticketId: ticket._id,
-          subject: ticket.subject,
-          content: content
-        }
-      });
-  
-
-      console.log(`Attempting to emit to realtor_${ticket.user}`);
-      console.log('Current Socket.IO state:', {
-        socketsCount: io.engine?.clientsCount,
-        rooms: io.sockets?.adapter?.rooms ? [...io.sockets.adapter.rooms.keys()] : 'N/A'
-      });
-
-      try {
-        io.to(`realtor_${ticket.user}`).emit('notification', {
-          title: 'New Reply to Your Ticket',
-          message: `Admin replied to your support ticket: ${ticket.subject}`,
-          type: 'support_reply',
-          ticketId: ticket._id,
-          timestamp: new Date()
-        });
-        console.log('Notification emitted successfully');
-      } catch (emitError) {
-        console.error('Error emitting notification:', emitError);
-      }
-  
-      res.json({ message: "Reply sent successfully", ticket });
-    } catch (err) {
-      console.error("Error in ticket reply:", err);
-      res.status(500).json({ message: "Failed to send reply", error: err.message });
+router.post("/ticket/:id/reply", async (req, res) => {
+  try {
+    const { content } = req.body;
+    const io = req.app.locals.io;
+    const ticket = await Messages.findById(req.params.id);
+    
+    if (!ticket) {
+      return res.status(404).json({ message: "Ticket not found" });
     }
-  });
+
+    // Add admin reply
+    ticket.messages.push({ sender: "admin", content });
+    ticket.status = "pending";
+    ticket.updatedAt = Date.now();
+    
+    await ticket.save();
+
+    // Determine user type (default to 'client' if not specified)
+    const userType = ticket.userType || 'client';
+    const roomName = `${userType}_${ticket.user}`;
+
+    // Log activity
+    await Activity.create({
+      userId: ticket.user,
+      userModel: userType === 'client' ? 'client' : 'Realtor',
+      role: userType,
+      activityType: 'support_message',
+      description: 'You have a new reply to your support ticket',
+      metadata: {
+        ticketId: ticket._id,
+        subject: ticket.subject,
+        content: content
+      }
+    });
+
+
+    console.log(`Attempting to emit to realtor_${ticket.user}`);
+    console.log('Current Socket.IO state:', {
+      socketsCount: io.engine?.clientsCount,
+      rooms: io.sockets?.adapter?.rooms ? [...io.sockets.adapter.rooms.keys()] : 'N/A'
+    });
+
+    try {
+      io.to(`realtor_${ticket.user}`).emit('notification', {
+        title: 'New Reply to Your Ticket',
+        message: `Admin replied to your support ticket: ${ticket.subject}`,
+        type: 'support_reply',
+        ticketId: ticket._id,
+        timestamp: new Date()
+      });
+      console.log('Notification emitted successfully');
+    } catch (emitError) {
+      console.error('Error emitting notification:', emitError);
+    }
+
+    res.json({ message: "Reply sent successfully", ticket });
+  } catch (err) {
+    console.error("Error in ticket reply:", err);
+    res.status(500).json({ message: "Failed to send reply", error: err.message });
+  }
+});
   
 // Get all realtors with sorting
 router.get('/viewrealtors', async (req, res) => {
@@ -1209,28 +1488,28 @@ router.delete('/delete/:id', async (req, res) => {
 });
 
 
-  router.post('/send-birthday-email', async (req, res) => {
-    const { email, message } = req.body;
-  
-    try {
-      await transporter.sendMail({
-        from: '"Baay Realty" <sanieldan@zohomail.com>',
-        to: email,
-        subject: 'Happy Birthday!',
-        html: `
-          <div style="font-family: Arial, sans-serif; color: #002657; text-align: center;">
-            <h1 style="color: #E5B30F;">🎉 Happy Birthday! 🎉</h1>
-            <p style="font-size: 16px;">${message}</p>
-            <p style="font-size: 14px; color: #666;">Wishing you a fantastic day filled with joy and laughter!</p>
-          </div>
-        `
-      });
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Email sending error:", error);
-      res.status(500).json({ success: false });
-    }
-  });
+router.post('/send-birthday-email', async (req, res) => {
+  const { email, message } = req.body;
+
+  try {
+    await transporter.sendMail({
+      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      to: email,
+      subject: 'Happy Birthday!',
+      html: `
+        <div style="font-family: Arial, sans-serif; color: #002657; text-align: center;">
+          <h1 style="color: #E5B30F;">🎉 Happy Birthday! 🎉</h1>
+          <p style="font-size: 16px;">${message}</p>
+          <p style="font-size: 14px; color: #666;">Wishing you a fantastic day filled with joy and laughter!</p>
+        </div>
+      `
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Email sending error:", error);
+    res.status(500).json({ success: false });
+  }
+});
 
 
   // Get all clients with search and sort
@@ -2197,8 +2476,8 @@ router.post('/create-admin', async (req, res) => {
 
     // Determine the login link based on adminType
     const loginLink = adminType === 'superadmin' 
-      ? 'https://baay-frontemd.onrender.com/superadmin/login' 
-      : 'https://baay-frontemd.onrender.com/admin/login';
+      ? 'https://superadmin.baayrealty.com' 
+      : 'https://admin.baayrealty.com';
 
     // HTML email template
     const htmlTemplate = `

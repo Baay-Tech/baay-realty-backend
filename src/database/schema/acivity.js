@@ -46,7 +46,8 @@ const activitySchema = new mongoose.Schema({
      'purchase_confirmed',
      'direct_commission',
      'indirect_commission',
-     'support_message'
+     'support_message',
+     "client_payment"
     ]
   },
   description: {
