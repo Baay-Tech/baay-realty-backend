@@ -17,6 +17,7 @@ const propertySchema = new mongoose.Schema({
   description: { type: String },
   commission: { type: Number },
   indirectcommission: { type: String },
+  documentfee: { type: Number },
   createdAt: { type: Date, default: Date.now }
 });
 

@@ -1093,7 +1093,8 @@ router.post('/properties', async (req, res) => {
       galleryImages,
       subscriptionForm,
       commission,
-      indirectcommission
+      indirectcommission,
+      documentfee
     } = req.body;
 
     const io = req.app.get('io');
@@ -1115,7 +1116,8 @@ router.post('/properties', async (req, res) => {
       galleryImages,
       subscriptionForm,
       commission,
-      indirectcommission
+      indirectcommission,
+      documentfee
     });
 
     // Save the property first
