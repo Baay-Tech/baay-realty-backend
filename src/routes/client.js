@@ -23,8 +23,8 @@ const transporter = nodemailer.createTransport({
     port: 465,
     secure: true,
     auth: {
-      user: 'sanieldan@zohomail.com',
-      pass: 'p8CtA0MtwP6E'
+      user: 'contact.baayprojects@baayprojects.com',
+      pass: '9bQrYNnpLAbk'
     }
   });
   
@@ -32,7 +32,7 @@ const transporter = nodemailer.createTransport({
   const sendEmail = async (to, subject, htmlContent) => { // Changed parameter name
     try {
       await transporter.sendMail({
-        from: '"Baay Realty" <sanieldan@zohomail.com>',
+        from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
         to,
         subject,
         html: htmlContent // Changed from 'text' to 'html'
@@ -169,7 +169,7 @@ router.post('/send-otp', async (req, res) => {
     
     // Send OTP email
     await transporter.sendMail({
-      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
       to: email,
       subject: 'Verification Code for Baay Realty Registration',
       html: otpEmailTemplate(name, otp)
@@ -828,7 +828,7 @@ router.post('/auth/send-otp', async (req, res) => {
 
     // Send OTP via email
     const mailOptions = {
-      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
       to: email,
       subject: 'Your OTP for Password Reset',
       text: `Your OTP is: ${otp}. It will expire in 10 minutes.`,
@@ -887,7 +887,7 @@ router.post('/auth/change-password', async (req, res) => {
 
     // Send confirmation email
     const mailOptions = {
-      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
       to: email,
       subject: 'Password Changed Successfully',
       text: 'Your password has been changed successfully. If you did not initiate this change, please contact our support team.',

@@ -62,7 +62,7 @@ const RealtorSchema = new mongoose.Schema({
 RealtorSchema.pre('save', function (next) {
   const totalDirectCommission = this.directCommission.reduce((acc, curr) => acc + curr.amount, 0);
   const totalIndirectCommission = this.indirectCommission.reduce((acc, curr) => acc + curr.amount, 0);
-  this.balance = this.funding + totalDirectCommission + totalIndirectCommission;
+  this.balance = totalDirectCommission + totalIndirectCommission;
   next();
 });
 

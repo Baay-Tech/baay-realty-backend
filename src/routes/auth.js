@@ -39,8 +39,8 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true,
   auth: {
-    user: 'sanieldan@zohomail.com',
-    pass: 'p8CtA0MtwP6E'
+    user: 'contact.baayprojects@baayprojects.com',
+    pass: '9bQrYNnpLAbk'
   }
 });
 
@@ -49,7 +49,7 @@ const transporter = nodemailer.createTransport({
   const sendEmail = async (to, subject, htmlContent) => { // Changed parameter name
     try {
       await transporter.sendMail({
-        from: '"Baay Realty" <sanieldan@zohomail.com>',
+        from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
         to,
         subject,
         html: htmlContent // Changed from 'text' to 'html'
@@ -309,7 +309,7 @@ router.post('/realtor/register', async (req, res) => {
 
     const mailOptions = {
       to: newRealtor.email,
-      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
       subject: `🎉 Welcome to Baay Realty - Your Realtor Portal Access`,
       html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
           

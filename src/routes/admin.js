@@ -66,8 +66,8 @@ const transporter = nodemailer.createTransport({
     port: 465,
     secure: true,
     auth: {
-      user: 'sanieldan@zohomail.com',
-      pass: 'p8CtA0MtwP6E'
+      user: 'contact.baayprojects@baayprojects.com',
+      pass: '9bQrYNnpLAbk'
     }
   });
   
@@ -75,7 +75,7 @@ const transporter = nodemailer.createTransport({
   const sendEmail = async (to, subject, text, html) => {
     try {
       await transporter.sendMail({
-        from: '"Baay Realty" <sanieldan@zohomail.com>',
+        from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
         to,
         subject,
         text,
@@ -1061,7 +1061,7 @@ const sendPropertyEmail = async (to, property) => {
     `;
 
     await transporter.sendMail({
-      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
       to,
       subject: `New Property: ${property.propertyName}`,
       html: htmlContent,
@@ -1493,7 +1493,7 @@ router.post('/send-birthday-email', async (req, res) => {
 
   try {
     await transporter.sendMail({
-      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
       to: email,
       subject: 'Happy Birthday!',
       html: `
@@ -2498,7 +2498,7 @@ router.post('/create-admin', async (req, res) => {
 
     // Email options
     const mailOptions = {
-      from: '"Baay Realty" <sanieldan@zohomail.com>',
+      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
       to: email,
       subject: 'Your Baay Admin Account Has Been Created',
       html: htmlTemplate
