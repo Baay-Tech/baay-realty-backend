@@ -226,7 +226,8 @@ router.post('/realtor/register', async (req, res) => {
   try {
     const {
       username, firstName, lastName, email, phone,
-      password, dob, gender, referrer
+      password, dob, gender, 
+      // referrer
     } = req.body;
 
     // Validate existing user
@@ -243,15 +244,15 @@ router.post('/realtor/register', async (req, res) => {
     }
 
     // Find referring Realtor - USE findOne instead of find
-    const referringRealtor = await Realtor.findOne({ referrerIdNumber: referrer }).session(session);
+    // const referringRealtor = await Realtor.findOne({ referrerIdNumber: referrer }).session(session);
 
-    if (!referringRealtor) {
-      await session.abortTransaction();
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid referral code' 
-      });
-    }
+    // if (!referringRealtor) {
+    //   await session.abortTransaction();
+    //   return res.status(400).json({ 
+    //     success: false, 
+    //     message: 'Invalid referral code' 
+    //   });
+    // }
 
     // Generate referral ID
     const generateReferralId = () => {
@@ -289,12 +290,14 @@ router.post('/realtor/register', async (req, res) => {
       password: hashedPassword,
       dob: new Date(dob),
       gender,
-      upline: {
-        name: `${referringRealtor.firstName} ${referringRealtor.lastName}`,
-        phone: referringRealtor.phone,
-        email: referringRealtor.email
-      }
+      // upline: {
+      //   name: `${referringRealtor.firstName} ${referringRealtor.lastName}`,
+      //   phone: referringRealtor.phone,
+      //   email: referringRealtor.email
+      // }
     });
+
+    console.log('New Realtor Data:', newRealtor);
 
     // Generate JWT token
     const token = jwt.sign(
@@ -339,9 +342,9 @@ router.post('/realtor/register', async (req, res) => {
         <div style="background: #f9f9f9; padding: 15px; border-radius: 6px;">
           <h3 style="color: #002657;">📢 Your Upline ConsuRealtorltant</h3>
           <ul style="list-style: none; padding: 0;">
-            <li><strong>Name:</strong> ${referringRealtor.firstName} ${referringRealtor.lastName}</li>
-            <li><strong>Phone:</strong> ${referringRealtor.phone}</li>
-            <li><strong>Email:</strong> ${referringRealtor.email}</li>
+            <li><strong>Name:</strong> ${newRealtor.upline?.name || 'N/A'}</li>
+            <li><strong>Phone:</strong> ${newRealtor.upline?.phone || 'N/A'}</li>
+            <li><strong>Email:</strong> ${newRealtor.upline?.email || 'N/A'}</li>
           </ul>
         </div>
 
@@ -382,17 +385,17 @@ router.post('/realtor/register', async (req, res) => {
       });
     });
 
-    // FIXED: Properly update referring realtor's referrals
-    if (!referringRealtor.Realtorreferrals) {
-      referringRealtor.Realtorreferrals = [];
-    }
+    // // FIXED: Properly update referring realtor's referrals
+    // if (!referringRealtor.Realtorreferrals) {
+    //   referringRealtor.Realtorreferrals = [];
+    // }
 
-    referringRealtor.Realtorreferrals.push({
-      username: newRealtor.username,
-      phone: newRealtor.phone,
-      email: newRealtor.email,
-      date: new Date()
-    });
+    // referringRealtor.Realtorreferrals.push({
+    //   username: newRealtor.username,
+    //   phone: newRealtor.phone,
+    //   email: newRealtor.email,
+    //   date: new Date()
+    // });
 
     await Activity.create({
       userId: newRealtor._id,
@@ -417,7 +420,7 @@ router.post('/realtor/register', async (req, res) => {
     // Example: Send to all admins
     io.to('admin_room').emit('admin_notification', notification);
 
-    await referringRealtor.save({ session });
+    // await referringRealtor.save({ session });
     await newRealtor.save({ session });
     await session.commitTransaction();
 
