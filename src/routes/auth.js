@@ -39,8 +39,8 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true,
   auth: {
-    user: 'contact.baayprojects@baayprojects.com',
-    pass: '9bQrYNnpLAbk'
+    user: 'noreply@baayoperations.com',
+    pass: 'w20KQTTcpWk1'
   }
 });
 
@@ -49,7 +49,7 @@ const transporter = nodemailer.createTransport({
   const sendEmail = async (to, subject, htmlContent) => { // Changed parameter name
     try {
       await transporter.sendMail({
-        from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
+        from: '"Baay Realty" <noreply@baayoperations.com>',
         to,
         subject,
         html: htmlContent // Changed from 'text' to 'html'
@@ -227,7 +227,7 @@ router.post('/realtor/register', async (req, res) => {
     const {
       username, firstName, lastName, email, phone,
       password, dob, gender, 
-      // referrer
+      referrer
     } = req.body;
 
     // Validate existing user
@@ -244,15 +244,15 @@ router.post('/realtor/register', async (req, res) => {
     }
 
     // Find referring Realtor - USE findOne instead of find
-    // const referringRealtor = await Realtor.findOne({ referrerIdNumber: referrer }).session(session);
+    const referringRealtor = await Realtor.findOne({ referrerIdNumber: referrer }).session(session);
 
-    // if (!referringRealtor) {
-    //   await session.abortTransaction();
-    //   return res.status(400).json({ 
-    //     success: false, 
-    //     message: 'Invalid referral code' 
-    //   });
-    // }
+    if (!referringRealtor) {
+      await session.abortTransaction();
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid referral code' 
+      });
+    }
 
     // Generate referral ID
     const generateReferralId = () => {
@@ -290,11 +290,11 @@ router.post('/realtor/register', async (req, res) => {
       password: hashedPassword,
       dob: new Date(dob),
       gender,
-      // upline: {
-      //   name: `${referringRealtor.firstName} ${referringRealtor.lastName}`,
-      //   phone: referringRealtor.phone,
-      //   email: referringRealtor.email
-      // }
+      upline: {
+        name: `${referringRealtor.firstName} ${referringRealtor.lastName}`,
+        phone: referringRealtor.phone,
+        email: referringRealtor.email
+      }
     });
 
     console.log('New Realtor Data:', newRealtor);
@@ -312,7 +312,7 @@ router.post('/realtor/register', async (req, res) => {
 
     const mailOptions = {
       to: newRealtor.email,
-      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
+      from: '"Baay Realty" <noreply@baayoperations.com>',
       subject: `🎉 Welcome to Baay Realty - Your Realtor Portal Access`,
       html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
           
@@ -385,17 +385,17 @@ router.post('/realtor/register', async (req, res) => {
       });
     });
 
-    // // FIXED: Properly update referring realtor's referrals
-    // if (!referringRealtor.Realtorreferrals) {
-    //   referringRealtor.Realtorreferrals = [];
-    // }
+    // FIXED: Properly update referring realtor's referrals
+    if (!referringRealtor.Realtorreferrals) {
+      referringRealtor.Realtorreferrals = [];
+    }
 
-    // referringRealtor.Realtorreferrals.push({
-    //   username: newRealtor.username,
-    //   phone: newRealtor.phone,
-    //   email: newRealtor.email,
-    //   date: new Date()
-    // });
+    referringRealtor.Realtorreferrals.push({
+      username: newRealtor.username,
+      phone: newRealtor.phone,
+      email: newRealtor.email,
+      date: new Date()
+    });
 
     await Activity.create({
       userId: newRealtor._id,
@@ -420,7 +420,7 @@ router.post('/realtor/register', async (req, res) => {
     // Example: Send to all admins
     io.to('admin_room').emit('admin_notification', notification);
 
-    // await referringRealtor.save({ session });
+    await referringRealtor.save({ session });
     await newRealtor.save({ session });
     await session.commitTransaction();
 

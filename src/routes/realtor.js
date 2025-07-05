@@ -37,8 +37,8 @@ const transporter = nodemailer.createTransport({
   debug: true,
   secureConnection: false,
   auth: {
-    user: 'contact.baayprojects@baayprojects.com',
-    pass: '9bQrYNnpLAbk'
+    user: 'noreply@baayoperations.com',
+    pass: 'w20KQTTcpWk1'
   }
 });
 
@@ -253,7 +253,7 @@ router.post("/upload-fund", async (req, res) => {
     // Admin email template
     const adminMailOptions = {
       to: ['favoursunday600@gmail.com', 'clientrelations.baayprojects@gmail.com'],
-      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
+      from: '"Baay Realty" <noreply@baayoperations.com>',
       subject: `📩 New Client Payment by Realtor ${realtor.firstName} ${realtor.lastName}`,
       html: `
         <div style="background-color: #002657; color: white; padding: 20px; text-align: center; border-radius: 10px; max-width: 600px; margin: auto;">
@@ -276,7 +276,7 @@ router.post("/upload-fund", async (req, res) => {
     // Client email template
     const clientMailOptions = {
       to: client.email,
-      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
+      from: '"Baay Realty" <noreply@baayoperations.com>',
       subject: `✅ Payment Submitted for ${property.propertyName}`,
       html: `
         <div style="background-color: #002657; color: white; padding: 20px; text-align: center; border-radius: 10px; max-width: 600px; margin: auto;">
@@ -294,7 +294,7 @@ router.post("/upload-fund", async (req, res) => {
     // Realtor email template
     const realtorMailOptions = {
       to: realtor.email,
-      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
+      from: '"Baay Realty" <noreply@baayoperations.com>',
       subject: `📌 Payment Submitted for ${client.firstName}'s Purchase`,
       html: `
         <div style="background-color: #002657; color: white; padding: 20px; text-align: center; border-radius: 10px; max-width: 600px; margin: auto;">
@@ -457,7 +457,7 @@ router.post('/withdrawal', async (req, res) => {
     // Admin email template
     const adminMailOptions = {
       to: ['Favoursunday600@gmail.com', 'clientrelations.baayprojects@gmail.com'],
-      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
+      from: '"Baay Realty" <noreply@baayoperations.com>',
       subject: `📩 New Withdrawal Request from ${firstName} ${lastName}`,
       html: `
         <div style="background-color: #002657; color: white; padding: 20px; text-align: center; border-radius: 10px; max-width: 600px; margin: auto;">
@@ -480,7 +480,7 @@ router.post('/withdrawal', async (req, res) => {
     // User email template
     const userMailOptions = {
       to: email,
-      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
+      from: '"Baay Realty" <noreply@baayoperations.com>',
       subject: `✅ Withdrawal Request Received`,
       html: `
         <div style="background-color: #002657; color: white; padding: 20px; text-align: center; border-radius: 10px; max-width: 600px; margin: auto;">
@@ -972,7 +972,7 @@ router.post('/auth/send-otp', async (req, res) => {
 
     // Send OTP via email
     const mailOptions = {
-      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
+      from: '"Baay Realty" <noreply@baayoperations.com>',
       to: email,
       subject: 'Your OTP for Password Reset',
       text: `Your OTP is: ${otp}. It will expire in 10 minutes.`,
@@ -1030,7 +1030,7 @@ router.post('/auth/change-password', async (req, res) => {
 
     // Send confirmation email
     const mailOptions = {
-      from: '"Baay Realty" <contact.baayprojects@baayprojects.com>',
+      from: '"Baay Realty" <noreply@baayoperations.com>',
       to: email,
       subject: 'Password Changed Successfully',
       text: 'Your password has been changed successfully. If you did not initiate this change, please contact our support team.',
