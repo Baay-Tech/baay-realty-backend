@@ -36,8 +36,8 @@ const logActivity = async (userId, userModel, role, activityType, description, r
 
 const transporter = nodemailer.createTransport({
   host: "smtp.zoho.com",
-  port: 465,
-  secure: true,
+  port: 587,
+  secure: false,
   auth: {
     user: 'noreply@baayoperations.com',
     pass: 'w20KQTTcpWk1'
@@ -178,7 +178,7 @@ router.post('/realtor/send-otp', async (req, res) => {
     
     return res.status(200).json({ message: "OTP sent successfully" });
   } catch (error) {
-    console.error("Error sending OTP:", error);
+    console.log("Error sending OTP:", error);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -212,7 +212,7 @@ router.post('/realtor/verify-otp', (req, res) => {
     
     return res.status(200).json({ message: "OTP verified successfully" });
   } catch (error) {
-    console.error("Error verifying OTP:", error);
+    console.log("Error verifying OTP:", error);
     return res.status(500).json({ message: "Server error" });
   }
 });

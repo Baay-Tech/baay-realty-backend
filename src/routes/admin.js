@@ -1493,6 +1493,8 @@ router.delete('/delete/:id', async (req, res) => {
 router.post('/send-birthday-email', async (req, res) => {
   const { email, message } = req.body;
 
+  console.log(`Sending birthday email to ${email} with message: ${message}`);
+
   try {
     await transporter.sendMail({
       from: '"Baay Realty" <noreply@baayoperations.com>',
@@ -1508,7 +1510,7 @@ router.post('/send-birthday-email', async (req, res) => {
     });
     res.json({ success: true });
   } catch (error) {
-    console.error("Email sending error:", error);
+    console.log("Email sending error:", error);
     res.status(500).json({ success: false });
   }
 });
