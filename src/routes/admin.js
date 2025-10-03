@@ -62,32 +62,38 @@ const logActivity = async (userId, userModel, role, activityType, description, m
 
 // Email Transporter Configuration
 const transporter = nodemailer.createTransport({
-    host: "smtp.zoho.com",
-    port: 465,
-    secure: true,
-    auth: {
-      user: 'noreply@baayoperations.com',
-      pass: 'w20KQTTcpWk1'
-    }
-  });
+  host: "smtp.zoho.com",
+  port: 587, // Try port 587 with TLS
+  secure: false, // false for port 587
+  auth: {
+    user: 'noreply@baayoperations.com',
+    pass: 'w20KQTTcpWk1'
+  },
+  tls: {
+    ciphers:'SSLv3',
+    rejectUnauthorized: false
+  },
+  connectionTimeout: 30000,
+  socketTimeout: 30000
+});
   
   // Function to send an email
-  const sendEmail = async (to, subject, text, html) => {
-    try {
-      await transporter.sendMail({
-        from: '"Baay Realty" <noreply@baayoperations.com>',
-        to,
-        subject,
-        text,
-        html
-      });
-      console.log(`Email sent to ${to}`);
-      return true;
-    } catch (error) {
-      console.error("Email sending error:", error);
-      return false;
-    }
-  };
+const sendEmail = async (to, subject, text, html) => {
+  try {
+    await transporter.sendMail({
+      from: '"Baay Realty" <noreply@baayoperations.com>',
+      to,
+      subject,
+      text,
+      html
+    });
+    console.log(`Email sent to ${to}`);
+    return true;
+  } catch (error) {
+    console.error("Email sending error:", error);
+    return false;
+  }
+};
   
 
 router.get('/dashboard-stats', async (req, res) => {
